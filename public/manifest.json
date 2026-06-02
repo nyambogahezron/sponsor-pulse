@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "SponsorPulse",
+  "version": "0.1.0",
+  "description": "Your YouTube companion — Hello World edition.",
+
+  "permissions": [],
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
