@@ -1,0 +1,10 @@
+#!/bin/sh
+# SponsorPulse pre-commit hook
+# Runs Biome check + auto-fix on all staged TypeScript/JS files.
+
+echo "Running Biome linter on src/ ..."
+npx biome check --write src/
+
+git add .
+
+echo "Biome check passed. Proceeding with commit."

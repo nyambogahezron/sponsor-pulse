@@ -43,7 +43,7 @@ function injectHelloWorldButton(): void {
   });
 
   btn.addEventListener('click', () => {
-    alert('✅ SponsorPulse content script is working!');
+    alert('SponsorPulse content script is working!');
   });
 
   document.body.appendChild(btn);

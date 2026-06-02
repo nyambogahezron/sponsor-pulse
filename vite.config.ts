@@ -1,23 +1,36 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
+/**
+ * Vite config for SponsorPulse Chrome Extension (Manifest V3)
+ *
+ * Key rules for Chrome Extensions:
+ *  1. No filename hashing — manifest.json references exact filenames.
+ *  2. No HMR / live-reload — Chrome loads static files from dist/.
+ *  3. Each extension entry point (content, background, popup) is a
+ *     separate Rollup input so they compile to predictable paths.
+ */
 export default defineConfig({
   build: {
-    // Output to dist/ (Chrome will load this folder)
     outDir: 'dist',
     emptyOutDir: true,
-
+    sourcemap: false,
+    assetsInlineLimit: 0,
     rollupOptions: {
       input: {
-        // Entry point: our content script
         content: resolve(__dirname, 'src/content.ts'),
       },
       output: {
-        // CRITICAL: disable hashing so manifest.json filenames stay stable
         entryFileNames: '[name].js',
-        chunkFileNames: '[name].js',
-        assetFileNames: '[name].[ext]',
+        chunkFileNames: 'chunks/[name].js',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name?.endsWith('.css')) return '[name].css';
+          return 'assets/[name].[ext]';
+        },
       },
     },
+  },
+  server: {
+    open: false,
   },
 });

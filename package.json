@@ -1,16 +1,24 @@
 {
   "name": "sponsor-pulse",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "dev": "vite",
+    "preview": "vite preview",
+    "lint": "biome check src/",
+    "lint:apply": "biome check --write src/",
+    "format": "biome format --write src/",
+    "icons": "node scripts/generate-icons.mjs",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
+    "@napi-rs/canvas": "^1.0.0",
     "@types/chrome": "^0.1.42",
     "@types/node": "^25.9.1",
+    "husky": "^9.1.7",
     "typescript": "~6.0.2",
     "vite": "^8.0.12"
   }
