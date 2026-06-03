@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SponsorPulse — AI-Powered YouTube Sponsor Detector</title>
+    <meta name="description" content="SponsorPulse uses AI and community crowdsourcing to detect and skip YouTube sponsor segments, entirely in your browser." />
+    <link rel="stylesheet" href="../styles/index.css" />
+  </head>
+  <body class="page-body">
+
+    <!-- ── Navigation ── -->
+    <nav class="site-nav" role="navigation" aria-label="Main navigation">
+      <a href="index.html" class="nav-logo" aria-label="SponsorPulse home">
+        <div class="nav-logo-icon" aria-hidden="true">
+          <svg viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1"  y="7"  width="2" height="4"  rx="1" opacity="0.5"/>
+            <rect x="4"  y="4"  width="2" height="10" rx="1" opacity="0.75"/>
+            <rect x="7"  y="1"  width="2" height="16" rx="1"/>
+            <rect x="10" y="4"  width="2" height="10" rx="1" opacity="0.75"/>
+            <rect x="13" y="7"  width="2" height="4"  rx="1" opacity="0.5"/>
+          </svg>
+        </div>
+        <span class="nav-logo-text">SponsorPulse</span>
+      </a>
+
+      <div class="nav-links" role="menubar">
+        <a href="index.html" class="nav-link active" role="menuitem">
+          <svg viewBox="0 0 16 16"><path d="M8 1.5 1.5 7H3v7.5h4V11h2v3.5h4V7h1.5L8 1.5z"/></svg>
+          Home
+        </a>
+        <a href="options.html" class="nav-link" role="menuitem">
+          <svg viewBox="0 0 16 16"><path d="M8 5a3 3 0 1 0 0 6A3 3 0 0 0 8 5zM1.5 7.5h1.6a5.02 5.02 0 0 1 .9-2.17L2.88 4.2 4.2 2.88l1.13 1.12A5.02 5.02 0 0 1 7.5 3.1V1.5h1v1.6a5.02 5.02 0 0 1 2.17.9l1.13-1.12 1.32 1.32-1.12 1.13A5.02 5.02 0 0 1 12.9 7.5h1.6v1h-1.6a5.02 5.02 0 0 1-.9 2.17l1.12 1.13-1.32 1.32-1.13-1.12a5.02 5.02 0 0 1-2.17.9v1.6h-1v-1.6a5.02 5.02 0 0 1-2.17-.9L4.2 13.12 2.88 11.8l1.12-1.13A5.02 5.02 0 0 1 3.1 8.5H1.5v-1z"/></svg>
+          Options
+        </a>
+        <a href="stats.html" class="nav-link" role="menuitem">
+          <svg viewBox="0 0 16 16"><path d="M1 11h3v3H1v-3zm4-4h3v7H5V7zm4-3h3v10H9V4zm4-3h2v13h-2V1z"/></svg>
+          Stats
+        </a>
+        <a href="index.html#help" class="nav-link" role="menuitem">
+          <svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 11h-1.5v-1.5h1.5V12zm1.19-5.06c-.3.36-.74.66-1.19.9v.66H7.25v-1.2c0-.25.16-.47.4-.55.47-.17.84-.42 1.06-.68.2-.23.29-.48.29-.73 0-.33-.12-.6-.36-.8A1.42 1.42 0 0 0 7.7 5.2c-.4 0-.72.11-.96.33-.2.19-.32.44-.35.74H4.9c.04-.67.3-1.23.77-1.65C6.17 4.22 6.87 4 7.7 4c.83 0 1.53.22 2.07.66.54.44.8 1.02.8 1.73 0 .53-.19 1.02-.63 1.55z"/></svg>
+          Help
+        </a>
+      </div>
+
+      <div class="nav-actions">
+        <a href="https://github.com/nyambogahezron/sponsor-pulse" target="_blank" rel="noopener" class="nav-btn nav-btn-ghost">
+          <svg viewBox="0 0 16 16"><path d="M8 .2C3.58.2 0 3.78 0 8.2c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.22.82 1.22.82.71 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.77-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 0 0 16 8.2C16 3.78 12.42.2 8 .2z"/></svg>
+          GitHub
+        </a>
+        <a href="index.html" class="nav-btn nav-btn-red" id="open-popup-link">
+          <svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="5" y="6" width="6" height="1.2" rx="0.6"/><rect x="5" y="8.8" width="4" height="1.2" rx="0.6"/></svg>
+          Open Popup
+        </a>
+      </div>
+    </nav>
+
+    <!-- ── Hero ── -->
+    <section class="hero" aria-label="Hero">
+      <div class="hero-content">
+
+        <div class="hero-badge" role="status" aria-label="Version beta, open source">
+          v0.1.0-beta · Open Source
+        </div>
+
+        <div class="hero-icon" aria-hidden="true">
+          <svg viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1"  y="7"  width="2" height="4"  rx="1" opacity="0.5"/>
+            <rect x="4"  y="4"  width="2" height="10" rx="1" opacity="0.75"/>
+            <rect x="7"  y="1"  width="2" height="16" rx="1"/>
+            <rect x="10" y="4"  width="2" height="10" rx="1" opacity="0.75"/>
+            <rect x="13" y="7"  width="2" height="4"  rx="1" opacity="0.5"/>
+          </svg>
+        </div>
+
+        <h1 class="hero-title">
+          <span class="word-sponsor">SPONSOR</span>
+          <br />
+          <span class="word-pulse">PULSE</span>
+        </h1>
+
+        <div class="hero-title-divider" aria-hidden="true"></div>
+
+        <p class="hero-tagline">
+          AI-powered sponsor detection for YouTube.<br />
+          Community-sourced. Privacy-first. Runs entirely in your browser.
+        </p>
+
+        <div class="hero-cta">
+          <a href="options.html" class="btn btn-red">
+            <svg viewBox="0 0 16 16"><path d="M8 5a3 3 0 1 0 0 6A3 3 0 0 0 8 5zM1.5 7.5h1.6a5.02 5.02 0 0 1 .9-2.17L2.88 4.2 4.2 2.88l1.13 1.12A5.02 5.02 0 0 1 7.5 3.1V1.5h1v1.6a5.02 5.02 0 0 1 2.17.9l1.13-1.12 1.32 1.32-1.12 1.13A5.02 5.02 0 0 1 12.9 7.5h1.6v1h-1.6a5.02 5.02 0 0 1-.9 2.17l1.12 1.13-1.32 1.32-1.13-1.12a5.02 5.02 0 0 1-2.17.9v1.6h-1v-1.6a5.02 5.02 0 0 1-2.17-.9L4.2 13.12 2.88 11.8l1.12-1.13A5.02 5.02 0 0 1 3.1 8.5H1.5v-1z"/></svg>
+            Configure Settings
+          </a>
+          <a href="stats.html" class="btn btn-outline">
+            <svg viewBox="0 0 16 16"><path d="M1 11h3v3H1v-3zm4-4h3v7H5V7zm4-3h3v10H9V4zm4-3h2v13h-2V1z"/></svg>
+            View My Stats
+          </a>
+          <a href="https://youtube.com" target="_blank" rel="noopener" class="btn btn-outline">
+            <svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM6.5 5.5 11 8l-4.5 2.5v-5z"/></svg>
+            Try on YouTube
+          </a>
+        </div>
+
+        <div class="scroll-hint" aria-hidden="true">
+          <svg viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></svg>
+          Explore
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Quick Access ── -->
+    <div class="divider-line"></div>
+    <div class="section">
+      <p class="section-label">Extension Pages</p>
+      <h2 class="section-title">Everything in one place</h2>
+      <p class="section-sub">Navigate to any part of the SponsorPulse extension from here.</p>
+
+      <div class="pages-grid" style="margin-top: 36px;">
+
+        <a href="options.html" class="card page-card" aria-label="Open Options page">
+          <div class="page-card-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16"><path d="M8 5a3 3 0 1 0 0 6A3 3 0 0 0 8 5zM1.5 7.5h1.6a5.02 5.02 0 0 1 .9-2.17L2.88 4.2 4.2 2.88l1.13 1.12A5.02 5.02 0 0 1 7.5 3.1V1.5h1v1.6a5.02 5.02 0 0 1 2.17.9l1.13-1.12 1.32 1.32-1.12 1.13A5.02 5.02 0 0 1 12.9 7.5h1.6v1h-1.6a5.02 5.02 0 0 1-.9 2.17l1.12 1.13-1.32 1.32-1.13-1.12a5.02 5.02 0 0 1-2.17.9v1.6h-1v-1.6a5.02 5.02 0 0 1-2.17-.9L4.2 13.12 2.88 11.8l1.12-1.13A5.02 5.02 0 0 1 3.1 8.5H1.5v-1z"/></svg>
+          </div>
+          <div>
+            <p class="page-card-title">Options</p>
+            <p class="page-card-desc">Configure detection sensitivity, auto-skip behaviour, notification preferences and more.</p>
+          </div>
+          <div class="page-card-arrow">
+            Open Options
+            <svg viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></svg>
+          </div>
+        </a>
+
+        <a href="stats.html" class="card page-card" aria-label="Open Stats page">
+          <div class="page-card-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16"><path d="M1 11h3v3H1v-3zm4-4h3v7H5V7zm4-3h3v10H9V4zm4-3h2v13h-2V1z"/></svg>
+          </div>
+          <div>
+            <p class="page-card-title">Stats</p>
+            <p class="page-card-desc">See how many sponsor segments you've skipped, time saved, and videos analysed over time.</p>
+          </div>
+          <div class="page-card-arrow">
+            View Stats
+            <svg viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></svg>
+          </div>
+        </a>
+
+        <a href="index.html#help" class="card page-card" aria-label="Open Help section">
+          <div class="page-card-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm.75 11h-1.5v-1.5h1.5V12zm1.19-5.06c-.3.36-.74.66-1.19.9v.66H7.25v-1.2c0-.25.16-.47.4-.55.47-.17.84-.42 1.06-.68.2-.23.29-.48.29-.73 0-.33-.12-.6-.36-.8A1.42 1.42 0 0 0 7.7 5.2c-.4 0-.72.11-.96.33-.2.19-.32.44-.35.74H4.9c.04-.67.3-1.23.77-1.65C6.17 4.22 6.87 4 7.7 4c.83 0 1.53.22 2.07.66.54.44.8 1.02.8 1.73 0 .53-.19 1.02-.63 1.55z"/></svg>
+          </div>
+          <div>
+            <p class="page-card-title">Help & FAQ</p>
+            <p class="page-card-desc">Common questions about how SponsorPulse works, privacy, and troubleshooting tips.</p>
+          </div>
+          <div class="page-card-arrow">
+            Get Help
+            <svg viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></svg>
+          </div>
+        </a>
+
+        <a href="https://github.com/nyambogahezron/sponsor-pulse" target="_blank" rel="noopener" class="card page-card" aria-label="Open GitHub repository">
+          <div class="page-card-icon" aria-hidden="true">
+            <svg viewBox="0 0 16 16"><path d="M8 .2C3.58.2 0 3.78 0 8.2c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.22.82 1.22.82.71 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.77-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 0 0 16 8.2C16 3.78 12.42.2 8 .2z"/></svg>
+          </div>
+          <div>
+            <p class="page-card-title">Source Code</p>
+            <p class="page-card-desc">SponsorPulse is fully open source. Star the repo, report bugs, or contribute on GitHub.</p>
+          </div>
+          <div class="page-card-arrow">
+            View on GitHub
+            <svg viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"/></svg>
+          </div>
+        </a>
+
+      </div>
+    </div>
+
+    <!-- ── Connect ── -->
+    <div class="divider-line"></div>
+    <div class="section" id="help">
+      <p class="section-label">Connect</p>
+      <h2 class="section-title">Find us online</h2>
+      <p class="section-sub">Follow along for updates, report issues, or reach out to the author.</p>
+
+      <div class="connect-grid" style="margin-top: 32px;">
+
+        <a href="https://github.com/nyambogahezron/sponsor-pulse" target="_blank" rel="noopener" class="social-link">
+          <svg viewBox="0 0 16 16"><path d="M8 .2C3.58.2 0 3.78 0 8.2c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.22.82 1.22.82.71 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.77-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8 8 0 0 0 16 8.2C16 3.78 12.42.2 8 .2z"/></svg>
+          GitHub
+        </a>
+
+        <a href="https://twitter.com/nyambogahezron" target="_blank" rel="noopener" class="social-link">
+          <!-- X / Twitter -->
+          <svg viewBox="0 0 16 16"><path d="M12.6 1h2.3L9.7 6.9 16 15h-4.2l-3.7-4.8-4.3 4.8H1.5l5.5-6.2L0 1h4.3l3.4 4.4L12.6 1zm-.8 12.6h1.3L4.3 2.3H3L11.8 13.6z"/></svg>
+          @nyambogahezron
+        </a>
+
+        <a href="https://github.com/nyambogahezron/sponsor-pulse/issues" target="_blank" rel="noopener" class="social-link">
+          <svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM7.25 4.75h1.5v4.5h-1.5v-4.5zm0 6h1.5v1.5h-1.5v-1.5z"/></svg>
+          Report an Issue
+        </a>
+
+        <a href="https://github.com/nyambogahezron/sponsor-pulse/discussions" target="_blank" rel="noopener" class="social-link">
+          <svg viewBox="0 0 16 16"><path d="M1.5 2h9a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H8l-2.5 2.5V10h-4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm10.5 3h2a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1v2L11 11h-1V8a1 1 0 0 1 1-1h.5V5z"/></svg>
+          Discussions
+        </a>
+
+        <a href="https://github.com/nyambogahezron/sponsor-pulse/releases" target="_blank" rel="noopener" class="social-link">
+          <svg viewBox="0 0 16 16"><path d="M7.3 1.1 1 7.4v.2l5.7 5.7h.2l6.3-6.3V1.1H7.3zm2.7 5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
+          Releases
+        </a>
+
+        <a href="https://github.com/nyambogahezron/sponsor-pulse/blob/main/README.md" target="_blank" rel="noopener" class="social-link">
+          <svg viewBox="0 0 16 16"><path d="M3 1h8.3L13 2.7V15H3V1zm2 3v1h6V4H5zm0 2.5v1h6v-1H5zm0 2.5v1h4V9H5z"/></svg>
+          Documentation
+        </a>
+
+      </div>
+    </div>
+
+    <!-- ── Footer ── -->
+    <div class="divider-line"></div>
+    <footer class="site-footer">
+      <p class="footer-copy">© 2025 SponsorPulse · Built by <a href="https://github.com/nyambogahezron" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;font-weight:600;">@nyambogahezron</a> · MIT License</p>
+      <nav class="footer-links" aria-label="Footer links">
+        <a href="index.html" class="footer-link">Home</a>
+        <a href="options.html" class="footer-link">Options</a>
+        <a href="stats.html" class="footer-link">Stats</a>
+        <a href="https://github.com/nyambogahezron/sponsor-pulse" target="_blank" rel="noopener" class="footer-link">GitHub</a>
+      </nav>
+    </footer>
+
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>

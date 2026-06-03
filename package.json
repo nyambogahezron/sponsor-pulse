@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc && vite build",
-    "dev": "vite",
-    "preview": "vite preview",
+    "preview": "bunx serve dist",
     "lint": "biome check src/",
     "lint:apply": "biome check --write src/",
     "format": "biome format --write src/",

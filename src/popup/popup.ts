@@ -1,48 +1,93 @@
-/**
- * SponsorPulse toolbar popup
- *
- * Responsibilities:
- *  - Read `enabled` from chrome.storage.local on open
- *  - Reflect state in the toggle switch and status badge
- *  - Persist changes back to chrome.storage.local on toggle
- */
+type Sensitivity = 'low' | 'medium' | 'high';
 
 interface StorageData {
   enabled: boolean;
+  autoSkip: boolean;
+  showNotification: boolean;
+  aiFallbackSensitivity: Sensitivity;
 }
-const STORAGE_KEY = 'enabled' satisfies keyof StorageData;
+
+const DEFAULTS: StorageData = {
+  enabled: true,
+  autoSkip: false,
+  showNotification: true,
+  aiFallbackSensitivity: 'medium',
+};
 
 function getEl<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
-  if (!el) throw new Error(`[SponsorPulse popup] Element #${id} not found.`);
+  if (!el) throw new Error(`[SponsorPulse] #${id} not found`);
   return el as T;
 }
 
-const toggle = getEl<HTMLInputElement>('enable-toggle');
+const enableToggle = getEl<HTMLInputElement>('enable-toggle');
 const statusBadge = getEl<HTMLSpanElement>('status-badge');
 const statusText = getEl<HTMLSpanElement>('status-text');
+const settingsPanel = getEl<HTMLDivElement>('settings-panel');
+const autoSkipToggle = getEl<HTMLInputElement>('auto-skip-toggle');
+const notificationToggle = getEl<HTMLInputElement>('notification-toggle');
+const sensitivitySelect = getEl<HTMLSelectElement>('sensitivity-select');
 
-function applyState(enabled: boolean): void {
-  toggle.checked = enabled;
-
-  if (enabled) {
-    statusBadge.classList.add('active');
-    statusText.textContent = 'Active';
-  } else {
-    statusBadge.classList.remove('active');
-    statusText.textContent = 'Inactive';
-  }
+function applyEnabled(enabled: boolean): void {
+  enableToggle.checked = enabled;
+  statusBadge.classList.toggle('active', enabled);
+  statusText.textContent = enabled ? 'Active' : 'Inactive';
+  // Dim settings panel when extension is globally disabled
+  settingsPanel.classList.toggle('disabled', !enabled);
 }
+
+function applyAutoSkip(autoSkip: boolean): void {
+  autoSkipToggle.checked = autoSkip;
+}
+
+function applyNotification(showNotification: boolean): void {
+  notificationToggle.checked = showNotification;
+}
+
+function applySensitivity(sensitivity: Sensitivity): void {
+  sensitivitySelect.value = sensitivity;
+}
+
+function applyAll(data: StorageData): void {
+  applyEnabled(data.enabled);
+  applyAutoSkip(data.autoSkip);
+  applyNotification(data.showNotification);
+  applySensitivity(data.aiFallbackSensitivity);
+}
+
+async function load(): Promise<StorageData> {
+  const result = await chrome.storage.local.get(Object.keys(DEFAULTS));
+  return { ...DEFAULTS, ...(result as Partial<StorageData>) };
+}
+
+function save(patch: Partial<StorageData>): void {
+  void chrome.storage.local.set(patch);
+}
+
+enableToggle.addEventListener('change', () => {
+  const enabled = enableToggle.checked;
+  applyEnabled(enabled);
+  save({ enabled });
+});
+
+autoSkipToggle.addEventListener('change', () => {
+  const autoSkip = autoSkipToggle.checked;
+  save({ autoSkip });
+});
+
+notificationToggle.addEventListener('change', () => {
+  const showNotification = notificationToggle.checked;
+  save({ showNotification });
+});
+
+sensitivitySelect.addEventListener('change', () => {
+  const aiFallbackSensitivity = sensitivitySelect.value as Sensitivity;
+  save({ aiFallbackSensitivity });
+});
 
 async function init(): Promise<void> {
-  const result = await chrome.storage.local.get(STORAGE_KEY);
-  const enabled: boolean = (result as Partial<StorageData>)[STORAGE_KEY] ?? true;
-  applyState(enabled);
+  const data = await load();
+  applyAll(data);
 }
-toggle.addEventListener('change', () => {
-  const enabled = toggle.checked;
-  applyState(enabled);
-  void chrome.storage.local.set({ [STORAGE_KEY]: enabled } satisfies StorageData);
-});
 
 void init();

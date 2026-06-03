@@ -37,7 +37,8 @@ function flattenHtmlOutputs(): Plugin {
         if (file !== dest && !existsSync(dest)) {
           copyFileSync(file, dest);
           unlinkSync(file);
-          console.log(`[flatten-html] ${file.replace(distDir + '/', '')} → popup.html`);
+          const name = file.split('/').at(-1)!;
+          console.log(`[flatten-html] ${file.replace(distDir + '/', '')} → ${name}`);
         }
       }
     },
@@ -53,8 +54,12 @@ export default defineConfig({
     assetsInlineLimit: 0,
     rollupOptions: {
       input: {
-        content: resolve(__dirname, 'src/content/index.ts'),
-        popup: resolve(__dirname, 'src/popup/popup.html'),
+        content:    resolve(__dirname, 'src/content/index.ts'),
+        background: resolve(__dirname, 'src/background/index.ts'),
+        popup:      resolve(__dirname, 'src/popup/popup.html'),
+        index:      resolve(__dirname, 'src/index/index.html'),
+        options:    resolve(__dirname, 'src/options/options.html'),
+        stats:      resolve(__dirname, 'src/stats/stats.html'),
       },
       output: {
         entryFileNames: '[name].js',

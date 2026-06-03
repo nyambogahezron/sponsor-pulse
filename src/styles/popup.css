@@ -216,3 +216,102 @@ body {
   opacity: 0.5;
   letter-spacing: 0.3px;
 }
+
+/* ── Settings section ── */
+.settings-section {
+  margin-top: 12px;
+  border: 1px solid var(--bg-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: opacity var(--transition);
+}
+
+.settings-section.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.settings-heading {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 10px 14px 8px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--bg-border);
+}
+
+/* ── Individual setting row ── */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  background: var(--bg-surface);
+  transition: background var(--transition);
+}
+
+.setting-row + .setting-row {
+  border-top: 1px solid var(--bg-border);
+}
+
+.setting-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.setting-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.setting-desc {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Sensitivity <select> ── */
+#sensitivity-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.06)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888899' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat right 8px center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 24px 5px 9px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+#sensitivity-select:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+#sensitivity-select:focus {
+  outline: 2px solid var(--sp-red);
+  outline-offset: 2px;
+}
+
+#sensitivity-select option {
+  background: #1a1a24;
+  color: var(--text-primary);
+}

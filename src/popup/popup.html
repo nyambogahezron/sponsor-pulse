@@ -4,17 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SponsorPulse AI</title>
-    <link rel="stylesheet" href="styles/popup.css" />
+    <link rel="stylesheet" href="../styles/popup.css" />
   </head>
   <body>
+
+    <!-- ── Header ── -->
     <header class="header">
       <div class="logo" aria-hidden="true">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
-          <rect x="1" y="7" width="2" height="4" rx="1" opacity="0.5" />
-          <rect x="4" y="4" width="2" height="10" rx="1" opacity="0.75" />
-          <rect x="7" y="1" width="2" height="16" rx="1" />
-          <rect x="10" y="4" width="2" height="10" rx="1" opacity="0.75" />
-          <rect x="13" y="7" width="2" height="4" rx="1" opacity="0.5" />
+          <rect x="1"  y="7"  width="2" height="4"  rx="1" opacity="0.5" />
+          <rect x="4"  y="4"  width="2" height="10" rx="1" opacity="0.75" />
+          <rect x="7"  y="1"  width="2" height="16" rx="1" />
+          <rect x="10" y="4"  width="2" height="10" rx="1" opacity="0.75" />
+          <rect x="13" y="7"  width="2" height="4"  rx="1" opacity="0.5" />
         </svg>
       </div>
       <div class="title-group">
@@ -25,8 +27,8 @@
 
     <div class="divider"></div>
 
-    <!-- Toggle -->
-    <div class="toggle-row">
+    <!-- ── Master toggle ── -->
+    <div class="toggle-row" id="master-row">
       <div class="toggle-info">
         <span class="toggle-label">Enable extension</span>
         <span id="status-badge" class="status-badge">
@@ -34,11 +36,52 @@
           <span id="status-text">Inactive</span>
         </span>
       </div>
-
       <label class="switch" aria-label="Enable or disable SponsorPulse">
         <input type="checkbox" id="enable-toggle" />
         <span class="switch-track"></span>
       </label>
+    </div>
+
+    <!-- ── Settings panel ── -->
+    <div class="settings-section" id="settings-panel">
+      <p class="settings-heading">Settings</p>
+
+      <!-- Auto-skip -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Auto-skip sponsors</span>
+          <span class="setting-desc">Jump over detected segments</span>
+        </div>
+        <label class="switch" aria-label="Auto-skip sponsor segments">
+          <input type="checkbox" id="auto-skip-toggle" />
+          <span class="switch-track"></span>
+        </label>
+      </div>
+
+      <!-- Show notification -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Skip notification</span>
+          <span class="setting-desc">Show toast on auto-skip</span>
+        </div>
+        <label class="switch" aria-label="Show skip notification">
+          <input type="checkbox" id="notification-toggle" />
+          <span class="switch-track"></span>
+        </label>
+      </div>
+
+      <!-- AI sensitivity -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">AI sensitivity</span>
+          <span class="setting-desc">Fallback detection threshold</span>
+        </div>
+        <select id="sensitivity-select" aria-label="AI fallback sensitivity">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
     </div>
 
     <footer class="footer">YouTube sponsor detection · local-only</footer>
