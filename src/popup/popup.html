@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SponsorPulse AI</title>
+    <link rel="stylesheet" href="styles/popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="logo" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
+          <rect x="1" y="7" width="2" height="4" rx="1" opacity="0.5" />
+          <rect x="4" y="4" width="2" height="10" rx="1" opacity="0.75" />
+          <rect x="7" y="1" width="2" height="16" rx="1" />
+          <rect x="10" y="4" width="2" height="10" rx="1" opacity="0.75" />
+          <rect x="13" y="7" width="2" height="4" rx="1" opacity="0.5" />
+        </svg>
+      </div>
+      <div class="title-group">
+        <span class="title">SponsorPulse AI</span>
+        <span class="version">v0.1.0-beta</span>
+      </div>
+    </header>
+
+    <div class="divider"></div>
+
+    <!-- Toggle -->
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <span class="toggle-label">Enable extension</span>
+        <span id="status-badge" class="status-badge">
+          <span class="dot"></span>
+          <span id="status-text">Inactive</span>
+        </span>
+      </div>
+
+      <label class="switch" aria-label="Enable or disable SponsorPulse">
+        <input type="checkbox" id="enable-toggle" />
+        <span class="switch-track"></span>
+      </label>
+    </div>
+
+    <footer class="footer">YouTube sponsor detection · local-only</footer>
+
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

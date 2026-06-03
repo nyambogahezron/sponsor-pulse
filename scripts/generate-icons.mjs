@@ -1,12 +1,6 @@
 #!/usr/bin/env node
 /**
  * scripts/generate-icons.mjs
- *
- * Programmatically generates SponsorPulse extension icons using the
- * native Node.js `canvas` API (via the `@napi-rs/canvas` package, which
- * is zero-config and pre-built — no native compilation needed).
- *
- * Run: node scripts/generate-icons.mjs
  */
 
 import { createCanvas } from '@napi-rs/canvas';
@@ -16,25 +10,56 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = join(__dirname, '..', 'public', 'icons');
-
-// Icon sizes required by Chrome Extension Manifest V3
 const SIZES = [16, 48, 128];
 
-// SponsorPulse brand colours
 const BRAND = {
-  gradientStart: '#6366f1', // indigo-500
-  gradientEnd: '#8b5cf6',   // violet-500
-  text: '#ffffff',
-  shadow: 'rgba(99, 102, 241, 0.4)',
+  gradientStart: '#ff0000',
+  gradientEnd: '#cc0000',
+  bars: '#ffffff',
 };
+
+function drawWaveform(ctx, size) {
+  const BAR_COUNT = 5;
+  const REL_HEIGHTS = [0.25, 0.55, 1.0, 0.55, 0.25];
+
+  const waveW = size * 0.60;
+  const barW = Math.max(2, Math.round(waveW / (BAR_COUNT * 2 - 1)));
+  const gap = barW;
+  const totalW = BAR_COUNT * barW + (BAR_COUNT - 1) * gap;
+  const startX = (size - totalW) / 2;
+
+  const maxBarH = size * 0.62;
+  const centerY = size / 2;
+
+  ctx.fillStyle = BRAND.bars;
+
+  for (let i = 0; i < BAR_COUNT; i++) {
+    const barH = maxBarH * REL_HEIGHTS[i];
+    const x = startX + i * (barW + gap);
+    const y = centerY - barH / 2;
+    const r = barW / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + barW - r, y);
+    ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+    ctx.lineTo(x + barW, y + barH - r);
+    ctx.quadraticCurveTo(x + barW, y + barH, x + barW - r, y + barH);
+    ctx.lineTo(x + r, y + barH);
+    ctx.quadraticCurveTo(x, y + barH, x, y + barH - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
 
 function generateIcon(size) {
   const canvas = createCanvas(size, size);
   const ctx = canvas.getContext('2d');
 
-  const radius = size * 0.22; // rounded corners — ~22% of size
+  const radius = size * 0.22;
 
-  // Background: rounded rect with gradient
   const grad = ctx.createLinearGradient(0, 0, size, size);
   grad.addColorStop(0, BRAND.gradientStart);
   grad.addColorStop(1, BRAND.gradientEnd);
@@ -54,36 +79,25 @@ function generateIcon(size) {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Letter "SP" centred (only legible at 48+ px)
   if (size >= 48) {
-    const label = size >= 128 ? 'SP' : 'S';
-    ctx.fillStyle = BRAND.text;
-    ctx.font = `bold ${Math.round(size * 0.42)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    // Subtle shadow for depth
-    ctx.shadowColor = 'rgba(0,0,0,0.25)';
-    ctx.shadowBlur = size * 0.06;
-    ctx.fillText(label, size / 2, size / 2 + size * 0.02);
+    drawWaveform(ctx, size);
   } else {
-    // 16px: just a dot / spark symbol
-    ctx.fillStyle = BRAND.text;
+    ctx.fillStyle = BRAND.bars;
     ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size * 0.2, 0, Math.PI * 2);
+    ctx.arc(size / 2, size / 2, size * 0.22, 0, Math.PI * 2);
     ctx.fill();
   }
 
   return canvas.toBuffer('image/png');
 }
 
-// Main
 mkdirSync(OUTPUT_DIR, { recursive: true });
 
 for (const size of SIZES) {
   const buffer = generateIcon(size);
   const outPath = join(OUTPUT_DIR, `icon${size}.png`);
   writeFileSync(outPath, buffer);
-  console.log(`Generated ${outPath} (${size}×${size})`);
+  console.log(`✓ ${outPath} (${size}×${size})`);
 }
 
 console.log('\n All icons generated in public/icons/');

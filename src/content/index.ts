@@ -1,4 +1,4 @@
-import STYLES from './content.css?inline';
+import STYLES from '../../public/styles/content.css?inline';
 
 const ACTION_BTN_ID = 'sp-analyze-btn';
 const PLAYER_BTN_ID = 'sp-player-btn';

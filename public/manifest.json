@@ -10,7 +10,12 @@
     "128": "icons/icon128.png"
   },
 
-  "permissions": [],
+  "permissions": ["storage"],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "SponsorPulse"
+  },
 
   "content_scripts": [
     {
