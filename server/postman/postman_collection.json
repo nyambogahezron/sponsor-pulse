@@ -1,0 +1,103 @@
+{
+  "info": {
+    "_postman_id": "c9e2b1a0-5c6d-4e7f-8a9b-0c1d2e3f4a5b",
+    "name": "SponsorPulse API",
+    "description": "API endpoints for the SponsorPulse Chrome extension backend.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Checks if the server is running."
+      },
+      "response": []
+    },
+    {
+      "name": "Root",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "/"
+          ]
+        },
+        "description": "Welcome to SponsorPulse!"
+      },
+      "response": []
+    },
+    {
+      "name": "Analyze Video",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"videoId\": \"dQw4w9WgXcQ\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/analyze",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "analyze"
+          ]
+        },
+        "description": "Analyzes a YouTube video for sponsor segments using the active LLM provider."
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+import { Hono } from 'hono';
+import { AIProviderFactory } from '../ai/providers';
+import { fetchTranscript } from '../lib/transcript';
+import type { AnalyzeRequest, AnalyzeResponse, ErrorResponse } from '../types';
+
+const analyze = new Hono();
+
+analyze.post('/', async (c) => {
+  let body: AnalyzeRequest;
+
+  try {
+    body = await c.req.json<AnalyzeRequest>();
+  } catch {
+    return c.json<ErrorResponse>({ error: 'Invalid JSON body.', code: 'INVALID_BODY' }, 400);
+  }
+
+  const { videoId } = body;
+
+  if (!videoId || typeof videoId !== 'string' || !/^[\w-]{11}$/.test(videoId)) {
+    return c.json<ErrorResponse>({ error: 'Invalid or missing videoId.', code: 'INVALID_VIDEO_ID' }, 400);
+  }
+
+  let transcript: string;
+  try {
+    transcript = await fetchTranscript(videoId);
+  } catch (err) {
+    console.error('[/analyze] Transcript fetch failed:', err);
+    return c.json<ErrorResponse>({ error: 'Failed to fetch transcript.', code: 'TRANSCRIPT_FETCH_FAILED' }, 502);
+  }
+
+  if (!transcript.trim()) {
+    return c.json<AnalyzeResponse>({
+      videoId,
+      segments: [],
+      provider: 'none',
+      analyzedAt: Date.now(),
+    });
+  }
+
+  let provider;
+  try {
+    provider = AIProviderFactory.create();
+  } catch (err) {
+    console.error('[/analyze] Provider init failed:', err);
+    return c.json<ErrorResponse>({ error: 'AI provider configuration error.', code: 'PROVIDER_INIT_FAILED' }, 500);
+  }
+
+  let segments;
+  try {
+    segments = await provider.analyzeTranscript(transcript);
+  } catch (err) {
+    console.error('[/analyze] AI analysis failed:', err);
+    return c.json<ErrorResponse>({ error: 'AI analysis failed.', code: 'ANALYSIS_FAILED' }, 502);
+  }
+
+  return c.json<AnalyzeResponse>({
+    videoId,
+    segments,
+    provider: provider.name,
+    analyzedAt: Date.now(),
+  });
+});
+
+export default analyze;
