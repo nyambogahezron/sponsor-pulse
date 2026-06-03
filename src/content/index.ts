@@ -1,5 +1,9 @@
 import STYLES from '../styles/content.css?inline';
+import type { AnalysisResult, SponsorSegment } from '../types/types';
+import { TranscriptAnalyzer } from './aiDetector';
+import { loadSkipperSettings, setButtonState, startSkipper, stopSkipper } from './sponsorSkipper';
 
+const LOG_PREFIX = '[SponsorPulse]';
 const ACTION_BTN_ID = 'sp-analyze-btn';
 const PLAYER_BTN_ID = 'sp-player-btn';
 const STYLE_ID = 'sp-styles';
@@ -26,16 +30,19 @@ const PULSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" a
   <rect x="13" y="7"  width="2" height="4"  rx="1" opacity="0.5"/>
 </svg>`;
 
+const analyzer = new TranscriptAnalyzer();
+let currentVideoId: string | null = null;
+let analysisInProgress = false;
+
+/** Stored for future popup/stats page access via chrome.runtime messaging. */
+export let lastAnalysis: AnalysisResult | null = null;
+
 function isWatchPage(): boolean {
   return window.location.pathname === '/watch';
 }
 
-function ensureStylesInjected(): void {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = STYLES;
-  document.head.appendChild(style);
+function getVideoId(): string | null {
+  return new URLSearchParams(window.location.search).get('v');
 }
 
 function getVideoTitle(): string {
@@ -46,10 +53,14 @@ function getVideoTitle(): string {
   return document.title.replace(/\s*[-–]\s*YouTube\s*$/i, '').trim() || 'Unknown title';
 }
 
-/**
- * Generic MutationObserver wrapper.
- * Resolves with the element as soon as `selector` matches, or null on timeout.
- */
+function ensureStylesInjected(): void {
+  if (document.getElementById(STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = STYLE_ID;
+  style.textContent = STYLES;
+  document.head.appendChild(style);
+}
+
 function waitForElement<T extends HTMLElement>(
   selector: string,
   timeoutMs = 8_000,
@@ -74,83 +85,136 @@ function waitForElement<T extends HTMLElement>(
       observer.disconnect();
       resolve(null);
     }, timeoutMs);
-
     observer.observe(document.documentElement, { childList: true, subtree: true });
   });
 }
 
-/** Tries each action bar selector in order; returns first match or null. */
 async function waitForActionBar(): Promise<HTMLElement | null> {
   for (const selector of ACTION_BAR_SELECTORS) {
     const el = await waitForElement<HTMLElement>(selector);
     if (el) return el;
   }
-  console.warn('[SponsorPulse] Action bar not found.');
+  console.warn(LOG_PREFIX, 'Action bar not found.');
   return null;
+}
+
+async function runSponsorDetection(videoId: string): Promise<void> {
+  if (analysisInProgress) return;
+
+  analysisInProgress = true;
+  setButtonState('analyzing');
+  console.log(LOG_PREFIX, `Starting sponsor detection for: ${videoId}`);
+
+  try {
+    const crowdsourcedSegments = await fetchCrowdsourcedSegments(videoId);
+    if (crowdsourcedSegments.length > 0) {
+      startSkipper(crowdsourcedSegments);
+      return;
+    }
+
+    console.log(LOG_PREFIX, 'No crowdsourced data — running local AI analysis...');
+    const result = await scheduleBackgroundAnalysis(videoId);
+    lastAnalysis = result;
+
+    if (result.segments.length > 0) {
+      startSkipper(result.segments);
+    } else {
+      console.log(LOG_PREFIX, 'No sponsor segments detected.');
+      setButtonState('done');
+    }
+  } catch (err) {
+    console.error(LOG_PREFIX, 'Sponsor detection failed:', err);
+    setButtonState('idle');
+  } finally {
+    analysisInProgress = false;
+  }
+}
+
+// TODO: replace with actual API call to the crowdsourced backend
+async function fetchCrowdsourcedSegments(_videoId: string): Promise<SponsorSegment[]> {
+  return [];
+}
+
+function scheduleBackgroundAnalysis(videoId: string): Promise<AnalysisResult> {
+  return new Promise((resolve, reject) => {
+    const run = () => analyzer.analyze(videoId).then(resolve).catch(reject);
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(() => run(), { timeout: 3000 });
+    } else {
+      setTimeout(run, 100);
+    }
+  });
+}
+
+function onAnalyzeClick(): void {
+  const videoId = getVideoId();
+  if (!videoId) return;
+  console.log(LOG_PREFIX, `Manual analysis triggered — "${getVideoTitle()}"`);
+  stopSkipper();
+  lastAnalysis = null;
+  analysisInProgress = false;
+  void runSponsorDetection(videoId);
 }
 
 function createActionBarButton(): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.id = ACTION_BTN_ID;
   btn.setAttribute('aria-label', 'SponsorPulse: analyze this video');
+  btn.setAttribute('data-sp-state', 'idle');
   btn.innerHTML = `${PULSE_SVG}<span>SponsorPulse</span>`;
-  btn.addEventListener('click', () => {
-    const title = getVideoTitle();
-    console.log(`[SponsorPulse] Action bar — "${title}"`);
-    alert(`SponsorPulse\n\n${title}`);
-  });
+  btn.addEventListener('click', onAnalyzeClick);
   return btn;
 }
 
 function createPlayerButton(): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.id = PLAYER_BTN_ID;
-  // `ytp-button` gives Chrome's YouTube player the correct base sizing/cursor.
   btn.className = 'ytp-button';
   btn.title = 'SponsorPulse — Analyze video';
   btn.setAttribute('aria-label', 'SponsorPulse: analyze this video');
+  btn.setAttribute('data-sp-state', 'idle');
   btn.innerHTML = PULSE_SVG;
-  btn.addEventListener('click', () => {
-    const title = getVideoTitle();
-    console.log(`[SponsorPulse] Player bar — "${title}"`);
-    alert(`SponsorPulse\n\n${title}`);
-  });
+  btn.addEventListener('click', onAnalyzeClick);
   return btn;
 }
 
 async function injectActionBarButton(): Promise<void> {
   document.getElementById(ACTION_BTN_ID)?.remove();
-
   const actionBar = await waitForActionBar();
-  if (!actionBar) return;
-  if (document.getElementById(ACTION_BTN_ID)) return; // race guard
-
+  if (!actionBar || document.getElementById(ACTION_BTN_ID)) return;
   ensureStylesInjected();
   actionBar.appendChild(createActionBarButton());
-  console.log('[SponsorPulse] Analyze button → action bar.');
+  console.log(LOG_PREFIX, 'Analyze button → action bar.');
 }
 
 async function injectPlayerButton(): Promise<void> {
   document.getElementById(PLAYER_BTN_ID)?.remove();
-
   const playerBar = await waitForElement<HTMLElement>(PLAYER_BAR_SELECTOR);
   if (!playerBar) {
-    console.warn('[SponsorPulse] Player control bar not found.');
+    console.warn(LOG_PREFIX, 'Player control bar not found.');
     return;
   }
   if (document.getElementById(PLAYER_BTN_ID)) return;
-
   ensureStylesInjected();
   playerBar.prepend(createPlayerButton());
-  console.log('[SponsorPulse] Waveform button → player control bar.');
+  console.log(LOG_PREFIX, 'Waveform button → player control bar.');
 }
 
 async function injectAll(): Promise<void> {
   if (!isWatchPage()) return;
+
+  const videoId = getVideoId();
+  if (!videoId || videoId === currentVideoId) return;
+
+  stopSkipper();
+  currentVideoId = videoId;
+  lastAnalysis = null;
+  analysisInProgress = false;
+
+  await loadSkipperSettings();
   await Promise.all([injectActionBarButton(), injectPlayerButton()]);
+  void runSponsorDetection(videoId);
 }
 
-document.addEventListener('yt-navigate-finish', () => {
-  void injectAll();
-});
+document.addEventListener('yt-navigate-finish', () => void injectAll());
 void injectAll();
