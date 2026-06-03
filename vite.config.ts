@@ -18,7 +18,7 @@ export default defineConfig({
     assetsInlineLimit: 0,
     rollupOptions: {
       input: {
-        content: resolve(__dirname, 'src/content.ts'),
+        content: resolve(__dirname, 'src/content/index.ts'),
       },
       output: {
         entryFileNames: '[name].js',
