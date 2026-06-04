@@ -1,112 +1,56 @@
+<!-- Modernized README with logo and animated demo -->
+
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="SponsorPulse logo" width="160" />
+</p>
+
 # SponsorPulse
 
-**SponsorPulse** is a modern, high-performance Chrome Extension designed to detect and seamlessly skip sponsored segments in YouTube videos. Rather than relying purely on crowdsourced timestamps, SponsorPulse utilizes a robust AI pipeline to analyze video transcripts in real-time, ensuring zero interruptions to your viewing experience.
+SponsorPulse is a lightweight, privacy-first Chrome extension that detects and skips sponsored segments in YouTube videos using an AI-powered transcript analysis pipeline.
 
-## ✨ Core Features
+<p align="center">
+  <img src="docs/assets/demo.svg" alt="SponsorPulse demo" width="780" />
+</p>
 
-- **AI-Powered Detection:** Uses state-of-the-art LLMs (Gemini, Claude, OpenAI, DeepSeek) via a fast backend to process transcripts and identify sponsor segments automatically.
-- **Native YouTube Integration:** Injects beautiful, state-driven UI directly into the YouTube player and action bar, matching YouTube's dark/light modes perfectly.
-- **Smart Skipper Engine:** 
-  - **Auto-Skip:** Automatically skips detected segments.
-  - **Manual Overlay:** Displays a sleek, non-intrusive overlay in the video player asking if you want to skip.
-  - **Keyboard Shortcuts:** Press \`S\` to skip a segment or \`D\` to dismiss the overlay and keep watching.
-- **Privacy-First & Performant:** Analysis happens off the main thread (`requestIdleCallback`), ensuring video playback is never impacted.
+Why SponsorPulse?
+- Fast, AI-driven detection tuned for accuracy
+- Minimal UI that integrates natively with YouTube
+- Privacy-minded: analysis runs off the main thread and only uses transcript data
 
-## 🛠️ Tech Stack
+Highlights
+- Auto-skip detected sponsor segments
+- Manual overlay with keyboard shortcuts: `S` (skip), `D` (dismiss)
+- Pluggable backend adapters for multiple LLM providers
 
-SponsorPulse is built as a monorepo containing both the extension client and the API backend:
+Tech snapshot
+- Client: TypeScript + Vite (Chrome Extension, Manifest V3)
+- Server: Bun + Hono — small, fast AI backend
 
-### Client (Chrome Extension)
-- **Framework:** Vanilla TypeScript + Vite
-- **Manifest:** Manifest V3
-- **Styling:** Custom CSS with CSS Variables for dynamic theming
-- **Pages:** Options, Stats Dashboard, Popup
+Quickstart
+1. Start the backend
 
-### Backend (AI Server)
-- **Runtime:** [Bun](https://bun.sh/)
-- **Framework:** [Hono](https://hono.dev/)
-- **AI Integration:** Unified adapter pattern supporting Gemini 3.5, GPT-4o, Claude 3.5, and DeepSeek.
-
----
-
-## 🚀 Getting Started
-
-### 1. Start the Backend Server
-
-The AI backend needs to be running to analyze transcripts. 
-
-\`\`\`bash
+```bash
 cd server
 bun install
-
-# Copy the environment file and add your preferred LLM API key
 cp .env.example .env
-
-# Start the server (runs on http://localhost:3000)
 bun run dev
-\`\`\`
-*(For more detailed backend instructions, see the [Server README](./server/README.md)).*
+```
 
-### 2. Build the Extension
+2. Build the extension
 
-Open a new terminal window in the root directory:
-
-\`\`\`bash
-# Install dependencies
+```bash
 bun install
-
-# Build the extension for production
 bun run build
-\`\`\`
+```
 
-This will generate a `dist/` folder containing the compiled extension.
+3. Load in Chrome (`chrome://extensions/` → Load unpacked → `dist/`)
 
-### 3. Load into Chrome
+Developer notes
+- Run tests: `npm test` (or `npm run test` inside `server` as appropriate)
+- Follow code style and keep PRs small and focused
 
-1. Open Chrome and navigate to `chrome://extensions/`.
-2. Enable **Developer mode** in the top right corner.
-3. Click **Load unpacked** in the top left.
-4. Select the `dist/` folder generated in the previous step.
+Contributing
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community standards.
 
-Navigate to a YouTube video, and you should see the **SponsorPulse** button appear in the action bar below the video title and inside the player controls!
-
----
-
-## 📂 Project Structure
-
-\`\`\`text
-sponsor-pulse/
-├── src/                      # Chrome Extension Source Code
-│   ├── content/              # Content scripts injected into YouTube
-│   │   ├── index.ts          # Core orchestrator and UI injector
-│   │   ├── aiDetector.ts     # Client-side transcript handling and chunking
-│   │   └── sponsorSkipper.ts # Skip engine, UI overlays, and keybinds
-│   ├── background/           # Service worker (Manifest V3)
-│   ├── options/              # Options page UI
-│   ├── popup/                # Extension popup UI
-│   ├── stats/                # User statistics dashboard
-│   ├── styles/               # CSS modules (content.css, popup.css, etc.)
-│   └── types/                # Shared TS interfaces
-├── server/                   # Hono + Bun Backend API
-│   ├── src/                  # Server source code (Routes, AI Providers)
-│   ├── .env.example          # Backend environment variables
-│   └── README.md             # Backend specific documentation
-├── public/                   # Static extension assets (icons, manifest.json)
-├── vite.config.ts            # Vite bundler configuration
-└── package.json              # Extension dependencies and build scripts
-\`\`\`
-
----
-
-## ⌨️ Keyboard Shortcuts
-
-| Key | Action | Description |
-| :--- | :--- | :--- |
-| \`S\` | **Skip** | Skips the current active sponsor segment and jumps to the end of the ad. |
-| \`D\` | **Dismiss** | Hides the manual skip overlay and prevents the current segment from triggering again. |
-
-*Shortcuts only trigger when you are actively watching the video (they won't fire if you are typing in the search bar or comments).*
-
-## 🤝 Contributing
-
-Contributions are welcome! If you'd like to add new trigger keywords, improve the UI, or add a new LLM provider to the backend, feel free to open a PR. Ensure that all TypeScript compiles cleanly using `bun run build`.
+License
+This project is released under the terms of the LICENSE file in the repository.
