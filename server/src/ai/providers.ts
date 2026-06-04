@@ -21,7 +21,7 @@ const CONFIGS: Record<ProviderKey, ProviderConfig> = {
     name: 'gemini',
     apiKeyEnv: 'GEMINI_API_KEY',
     modelEnv: 'GEMINI_MODEL',
-    defaultModel: 'gemini-1.5-flash',
+    defaultModel: 'gemini-3.5-flash',
     buildUrl: (model, key) =>
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
     buildHeaders: () => ({ 'Content-Type': 'application/json' }),
