@@ -1,0 +1,17 @@
+{
+  "name": "sponsor-pulse-extension",
+  "private": true,
+  "version": "0.1.1-beta",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && vite build",
+    "preview": "bunx serve dist",
+    "icons": "node scripts/generate-icons.mjs"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.0",
+    "@types/chrome": "^0.1.42",
+    "vite": "^8.0.12",
+    "typescript": "~6.0.2"
+  }
+}

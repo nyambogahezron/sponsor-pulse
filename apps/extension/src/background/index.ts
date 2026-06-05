@@ -8,25 +8,17 @@ import type {
 const LOG_PREFIX = '[SponsorPulse:BG]';
 const SERVER_URL = 'http://localhost:3000/api/v1/analyze';
 
-// ─── Installed listener ───────────────────────────────────────────────────────
-
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
     void chrome.tabs.create({ url: chrome.runtime.getURL('index.html') });
   }
 });
 
-// ─── Message listener ─────────────────────────────────────────────────────────
-
-/**
- * Maps a raw server segment `{ start, end }` to the extension's local
- * `SponsorSegment` shape `{ startTime, endTime, confidence, source }`.
- */
 function mapServerSegment(seg: ServerSponsorSegment): SponsorSegment {
   return {
     startTime: seg.start,
     endTime: seg.end,
-    confidence: 1.0, // server-side AI result — treat as high confidence
+    confidence: 1.0,
     source: 'ai-server',
   };
 }
@@ -50,7 +42,6 @@ chrome.runtime.onMessage.addListener(
         });
 
         if (!res.ok) {
-          // Server returned a structured error (400, 404, 500, 502, …)
           const errBody = (await res.json()) as { error: string; code: string };
           console.warn(LOG_PREFIX, `Server error ${res.status}:`, errBody);
           sendResponse({ error: errBody });
@@ -83,10 +74,7 @@ chrome.runtime.onMessage.addListener(
       }
     })();
 
-    // Return true to keep the message channel open while the async work runs.
     return true;
   },
 );
-
-// Re-export mapper so content/index.ts can import it without duplicating logic.
 export { mapServerSegment };

@@ -6,7 +6,6 @@ import type { AnalyzeRequest, AnalyzeResponse, ErrorResponse } from '../types';
 const analyze = new Hono();
 
 analyze.post('/', async (c) => {
-  // ── 1. Parse and validate request body ──────────────────────────────────────
   let body: AnalyzeRequest;
   try {
     body = await c.req.json<AnalyzeRequest>();
@@ -22,7 +21,6 @@ analyze.post('/', async (c) => {
     );
   }
 
-  // ── 2. Fetch transcript ──────────────────────────────────────────────────────
   let transcript: string;
   try {
     transcript = await fetchTranscript(videoId);
@@ -44,7 +42,6 @@ analyze.post('/', async (c) => {
     );
   }
 
-  // ── 3. Guard: empty transcript ───────────────────────────────────────────────
   if (!transcript.trim()) {
     return c.json<AnalyzeResponse>({
       videoId,
@@ -54,7 +51,6 @@ analyze.post('/', async (c) => {
     });
   }
 
-  // ── 4. Initialise AI provider ────────────────────────────────────────────────
   let provider;
   try {
     provider = AIProviderFactory.create();
@@ -66,7 +62,6 @@ analyze.post('/', async (c) => {
     );
   }
 
-  // ── 5. Run AI analysis ───────────────────────────────────────────────────────
   let segments;
   try {
     segments = await provider.analyzeTranscript(transcript);
@@ -78,7 +73,6 @@ analyze.post('/', async (c) => {
     );
   }
 
-  // ── 6. Return result ─────────────────────────────────────────────────────────
   return c.json<AnalyzeResponse>({
     videoId,
     segments,

@@ -37,7 +37,6 @@ const PULSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" a
 let currentVideoId: string | null = null;
 let analysisInProgress = false;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function isWatchPage(): boolean {
   return window.location.pathname === '/watch';
@@ -100,29 +99,15 @@ async function waitForActionBar(): Promise<HTMLElement | null> {
   return null;
 }
 
-/**
- * Maps a raw server segment `{ start, end }` to the extension's local
- * `SponsorSegment` shape so the skipper can consume it without knowing about
- * the server's type definitions.
- */
 function mapServerSegment(seg: ServerSponsorSegment): SponsorSegment {
   return {
     startTime: seg.start,
     endTime: seg.end,
-    confidence: 1.0, // AI-server results treated as high-confidence
+    confidence: 1.0,
     source: 'ai-server',
   };
 }
 
-// ─── Core analysis flow ───────────────────────────────────────────────────────
-
-/**
- * Sends a FETCH_SPONSORS message to the background worker and awaits the
- * response. Returns the mapped `SponsorSegment[]` array on success.
- *
- * Throws a descriptive Error on server errors or network failures so the
- * caller can update the button state accordingly.
- */
 async function requestSponsorsFromServer(videoId: string): Promise<SponsorSegment[]> {
   const message: FetchSponsorsMessage = { action: 'FETCH_SPONSORS', videoId };
 
@@ -130,7 +115,6 @@ async function requestSponsorsFromServer(videoId: string): Promise<SponsorSegmen
 
   if (response.error) {
     const { code, error } = response.error;
-    // NO_TRANSCRIPT is not a real error — the video just has no captions
     if (code === 'NO_TRANSCRIPT') {
       console.log(LOG_PREFIX, 'Video has no transcript — no sponsor data possible.');
       return [];
@@ -150,14 +134,12 @@ async function runSponsorDetection(videoId: string): Promise<void> {
   console.log(LOG_PREFIX, `Starting sponsor detection for: ${videoId}`);
 
   try {
-    // Step 1: crowdsourced data (future feature — currently always returns [])
     const crowdsourcedSegments = await fetchCrowdsourcedSegments(videoId);
     if (crowdsourcedSegments.length > 0) {
       startSkipper(crowdsourcedSegments);
       return;
     }
 
-    // Step 2: ask the backend for AI analysis
     console.log(LOG_PREFIX, 'No crowdsourced data — calling SponsorPulse backend...');
     const segments = await requestSponsorsFromServer(videoId);
 
@@ -179,8 +161,6 @@ async function runSponsorDetection(videoId: string): Promise<void> {
 async function fetchCrowdsourcedSegments(_videoId: string): Promise<SponsorSegment[]> {
   return [];
 }
-
-// ─── Button & DOM injection ───────────────────────────────────────────────────
 
 function onAnalyzeClick(): void {
   const videoId = getVideoId();
@@ -234,8 +214,6 @@ async function injectPlayerButton(): Promise<void> {
   playerBar.prepend(createPlayerButton());
   console.log(LOG_PREFIX, 'Waveform button → player control bar.');
 }
-
-// ─── SPA navigation handler ───────────────────────────────────────────────────
 
 async function injectAll(): Promise<void> {
   if (!isWatchPage()) return;

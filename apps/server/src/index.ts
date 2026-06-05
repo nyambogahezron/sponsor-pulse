@@ -7,26 +7,14 @@ const app = new Hono();
 
 app.use('*', logger());
 
-/**
- * CORS configuration.
- *
- * Hono's cors() middleware does NOT support glob strings for the `origin` option
- * (e.g. 'chrome-extension://*' is treated as a literal string, not a wildcard).
- * We use a validator function instead so Chrome Extension origins and local dev
- * servers are accepted while everything else is rejected.
- */
 app.use(
   '*',
   cors({
     origin: (origin) => {
-      // Non-browser requests (curl, Postman, server-to-server) have no Origin header
       if (!origin) return '*';
-      // Accept any installed Chrome / Chromium extension
       if (origin.startsWith('chrome-extension://')) return origin;
-      // Accept any localhost port for development
       if (origin.startsWith('http://localhost')) return origin;
       if (origin.startsWith('http://127.0.0.1')) return origin;
-      // Reject everything else
       return null;
     },
     allowMethods: ['GET', 'POST', 'OPTIONS'],

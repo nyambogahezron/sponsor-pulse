@@ -1,15 +1,6 @@
 import { defineConfig, type Plugin } from 'vite';
 import { resolve } from 'path';
 
-/**
- * Vite config for SponsorPulse Chrome Extension (Manifest V3)
- *
- * Key rules for Chrome Extensions:
- *  1. No filename hashing — manifest.json references exact filenames.
- *  2. No HMR / live-reload — Chrome loads static files from dist/.
- *  3. Each extension entry point (content, background, popup) is a
- *     separate Rollup input so they compile to predictable paths.
- */
 
 /**
  * Inline plugin: flatten HTML entry paths so Vite doesn't mirror

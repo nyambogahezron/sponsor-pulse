@@ -3,9 +3,9 @@ import type { SponsorSegment } from '../types';
 /**
  * Parses an LLM response string into SponsorSegment[].
  *
- * Handles two common LLM output shapes:
+ * Handles LLM output shapes:
  *   - A bare JSON array:  [{"start":10,"end":60}]
- *   - A JSON object with a "segments" key (some models wrap their response):
+ *   - A JSON object with a "segments" key:
  *     {"segments":[{"start":10,"end":60}]}
  *
  * Strips markdown code fences if the model ignores the system prompt.
@@ -25,7 +25,6 @@ export function parseSegments(raw: string): SponsorSegment[] {
     return [];
   }
 
-  // Unwrap { segments: [...] } envelope if present
   const candidates = Array.isArray(parsed)
     ? parsed
     : (parsed as Record<string, unknown>)?.segments;
