@@ -43,15 +43,13 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: false,
     assetsInlineLimit: 0,
-    rollupOptions: {
-      input: {
-        content:    resolve(__dirname, 'src/content/index.ts'),
-        background: resolve(__dirname, 'src/background/index.ts'),
-        popup:      resolve(__dirname, 'src/popup/popup.html'),
-        index:      resolve(__dirname, 'src/index/index.html'),
-        options:    resolve(__dirname, 'src/options/options.html'),
-        stats:      resolve(__dirname, 'src/stats/stats.html'),
-      },
+      rollupOptions: {
+        input: {
+          content:    resolve(__dirname, 'src/content/index.ts'),
+          background: resolve(__dirname, 'src/background/index.ts'),
+          popup:      resolve(__dirname, 'src/popup/popup.html'),
+          onboard:    resolve(__dirname, 'src/onboard/index.html'),
+        },
       output: {
         entryFileNames: '[name].js',
         chunkFileNames: 'chunks/[name].js',

@@ -3,13 +3,18 @@
   "private": true,
   "version": "0.1.0-beta",
   "type": "module",
+  "packageManager": "bun@1.3.14",
   "workspaces": [
     "apps/*"
   ],
   "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "preview": "turbo preview",
     "lint": "biome check apps/",
     "lint:apply": "biome check --write apps/",
     "format": "biome format --write apps/",
+    "typecheck": "turbo typecheck",
     "prepare": "husky"
   },
   "devDependencies": {
@@ -18,6 +23,7 @@
     "@types/chrome": "^0.1.42",
     "@types/node": "^25.9.1",
     "husky": "^9.1.7",
+    "turbo": "^2.9.16",
     "typescript": "~6.0.2",
     "vite": "^8.0.12"
   }
