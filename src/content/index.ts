@@ -1,6 +1,10 @@
 import STYLES from '../styles/content.css?inline';
-import type { AnalysisResult, SponsorSegment } from '../types/types';
-import { TranscriptAnalyzer } from './aiDetector';
+import type {
+  FetchSponsorsMessage,
+  FetchSponsorsResponse,
+  ServerSponsorSegment,
+  SponsorSegment,
+} from '../types/types';
 import { loadSkipperSettings, setButtonState, startSkipper, stopSkipper } from './sponsorSkipper';
 
 const LOG_PREFIX = '[SponsorPulse]';
@@ -30,12 +34,10 @@ const PULSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" a
   <rect x="13" y="7"  width="2" height="4"  rx="1" opacity="0.5"/>
 </svg>`;
 
-const analyzer = new TranscriptAnalyzer();
 let currentVideoId: string | null = null;
 let analysisInProgress = false;
 
-/** Stored for future popup/stats page access via chrome.runtime messaging. */
-export let lastAnalysis: AnalysisResult | null = null;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function isWatchPage(): boolean {
   return window.location.pathname === '/watch';
@@ -98,6 +100,48 @@ async function waitForActionBar(): Promise<HTMLElement | null> {
   return null;
 }
 
+/**
+ * Maps a raw server segment `{ start, end }` to the extension's local
+ * `SponsorSegment` shape so the skipper can consume it without knowing about
+ * the server's type definitions.
+ */
+function mapServerSegment(seg: ServerSponsorSegment): SponsorSegment {
+  return {
+    startTime: seg.start,
+    endTime: seg.end,
+    confidence: 1.0, // AI-server results treated as high-confidence
+    source: 'ai-server',
+  };
+}
+
+// ─── Core analysis flow ───────────────────────────────────────────────────────
+
+/**
+ * Sends a FETCH_SPONSORS message to the background worker and awaits the
+ * response. Returns the mapped `SponsorSegment[]` array on success.
+ *
+ * Throws a descriptive Error on server errors or network failures so the
+ * caller can update the button state accordingly.
+ */
+async function requestSponsorsFromServer(videoId: string): Promise<SponsorSegment[]> {
+  const message: FetchSponsorsMessage = { action: 'FETCH_SPONSORS', videoId };
+
+  const response: FetchSponsorsResponse = await chrome.runtime.sendMessage(message);
+
+  if (response.error) {
+    const { code, error } = response.error;
+    // NO_TRANSCRIPT is not a real error — the video just has no captions
+    if (code === 'NO_TRANSCRIPT') {
+      console.log(LOG_PREFIX, 'Video has no transcript — no sponsor data possible.');
+      return [];
+    }
+    throw new Error(`[${code}] ${error}`);
+  }
+
+  if (!response.segments) return [];
+  return response.segments.map(mapServerSegment);
+}
+
 async function runSponsorDetection(videoId: string): Promise<void> {
   if (analysisInProgress) return;
 
@@ -106,18 +150,19 @@ async function runSponsorDetection(videoId: string): Promise<void> {
   console.log(LOG_PREFIX, `Starting sponsor detection for: ${videoId}`);
 
   try {
+    // Step 1: crowdsourced data (future feature — currently always returns [])
     const crowdsourcedSegments = await fetchCrowdsourcedSegments(videoId);
     if (crowdsourcedSegments.length > 0) {
       startSkipper(crowdsourcedSegments);
       return;
     }
 
-    console.log(LOG_PREFIX, 'No crowdsourced data — running local AI analysis...');
-    const result = await scheduleBackgroundAnalysis(videoId);
-    lastAnalysis = result;
+    // Step 2: ask the backend for AI analysis
+    console.log(LOG_PREFIX, 'No crowdsourced data — calling SponsorPulse backend...');
+    const segments = await requestSponsorsFromServer(videoId);
 
-    if (result.segments.length > 0) {
-      startSkipper(result.segments);
+    if (segments.length > 0) {
+      startSkipper(segments);
     } else {
       console.log(LOG_PREFIX, 'No sponsor segments detected.');
       setButtonState('done');
@@ -135,23 +180,13 @@ async function fetchCrowdsourcedSegments(_videoId: string): Promise<SponsorSegme
   return [];
 }
 
-function scheduleBackgroundAnalysis(videoId: string): Promise<AnalysisResult> {
-  return new Promise((resolve, reject) => {
-    const run = () => analyzer.analyze(videoId).then(resolve).catch(reject);
-    if (typeof requestIdleCallback !== 'undefined') {
-      requestIdleCallback(() => run(), { timeout: 3000 });
-    } else {
-      setTimeout(run, 100);
-    }
-  });
-}
+// ─── Button & DOM injection ───────────────────────────────────────────────────
 
 function onAnalyzeClick(): void {
   const videoId = getVideoId();
   if (!videoId) return;
   console.log(LOG_PREFIX, `Manual analysis triggered — "${getVideoTitle()}"`);
   stopSkipper();
-  lastAnalysis = null;
   analysisInProgress = false;
   void runSponsorDetection(videoId);
 }
@@ -200,6 +235,8 @@ async function injectPlayerButton(): Promise<void> {
   console.log(LOG_PREFIX, 'Waveform button → player control bar.');
 }
 
+// ─── SPA navigation handler ───────────────────────────────────────────────────
+
 async function injectAll(): Promise<void> {
   if (!isWatchPage()) return;
 
@@ -208,7 +245,6 @@ async function injectAll(): Promise<void> {
 
   stopSkipper();
   currentVideoId = videoId;
-  lastAnalysis = null;
   analysisInProgress = false;
 
   await loadSkipperSettings();

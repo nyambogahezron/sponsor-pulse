@@ -1,5 +1,92 @@
+import type {
+  FetchSponsorsMessage,
+  FetchSponsorsResponse,
+  ServerSponsorSegment,
+  SponsorSegment,
+} from '../types/types';
+
+const LOG_PREFIX = '[SponsorPulse:BG]';
+const SERVER_URL = 'http://localhost:3000/api/v1/analyze';
+
+// ─── Installed listener ───────────────────────────────────────────────────────
+
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
     void chrome.tabs.create({ url: chrome.runtime.getURL('index.html') });
   }
 });
+
+// ─── Message listener ─────────────────────────────────────────────────────────
+
+/**
+ * Maps a raw server segment `{ start, end }` to the extension's local
+ * `SponsorSegment` shape `{ startTime, endTime, confidence, source }`.
+ */
+function mapServerSegment(seg: ServerSponsorSegment): SponsorSegment {
+  return {
+    startTime: seg.start,
+    endTime: seg.end,
+    confidence: 1.0, // server-side AI result — treat as high confidence
+    source: 'ai-server',
+  };
+}
+
+chrome.runtime.onMessage.addListener(
+  (
+    message: FetchSponsorsMessage,
+    _sender: chrome.runtime.MessageSender,
+    sendResponse: (response: FetchSponsorsResponse) => void,
+  ): boolean => {
+    if (message.action !== 'FETCH_SPONSORS') return false;
+
+    void (async () => {
+      console.log(LOG_PREFIX, `Fetching sponsors for videoId: ${message.videoId}`);
+
+      try {
+        const res = await fetch(SERVER_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId: message.videoId }),
+        });
+
+        if (!res.ok) {
+          // Server returned a structured error (400, 404, 500, 502, …)
+          const errBody = (await res.json()) as { error: string; code: string };
+          console.warn(LOG_PREFIX, `Server error ${res.status}:`, errBody);
+          sendResponse({ error: errBody });
+          return;
+        }
+
+        const data = (await res.json()) as {
+          videoId: string;
+          segments: ServerSponsorSegment[];
+          provider: string;
+          analyzedAt: number;
+        };
+
+        console.log(
+          LOG_PREFIX,
+          `Analysis complete — ${data.segments.length} segment(s) via ${data.provider}.`,
+        );
+
+        sendResponse({ segments: data.segments });
+      } catch (err) {
+        // Network-level failure: server is offline, DNS failure, etc.
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(LOG_PREFIX, 'Server unreachable:', message);
+        sendResponse({
+          error: {
+            code: 'SERVER_OFFLINE',
+            error: `Could not connect to SponsorPulse server: ${message}`,
+          },
+        });
+      }
+    })();
+
+    // Return true to keep the message channel open while the async work runs.
+    return true;
+  },
+);
+
+// Re-export mapper so content/index.ts can import it without duplicating logic.
+export { mapServerSegment };

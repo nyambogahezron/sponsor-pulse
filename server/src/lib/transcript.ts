@@ -1,32 +1,74 @@
+import { YoutubeTranscript, YoutubeTranscriptError } from 'youtube-transcript';
+
+// ─── Custom error types ───────────────────────────────────────────────────────
+
 /**
- * Mock transcript fetcher.
+ * Thrown when a video exists but has no transcript / captions available.
+ * The analyze route maps this to a 404 response.
+ */
+export class TranscriptNotAvailableError extends Error {
+  constructor(videoId: string) {
+    super(`No transcript available for video: ${videoId}`);
+    this.name = 'TranscriptNotAvailableError';
+  }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Converts a float number of seconds to an `[HH:MM:SS]` timestamp string,
+ * matching the format expected by the AI system prompt.
+ */
+function secondsToTimestamp(seconds: number): string {
+  const totalSeconds = Math.floor(seconds);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `[${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}]`;
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+
+/**
+ * Fetches the English transcript for a YouTube video using the
+ * `youtube-transcript` package and formats it for the AI system prompt.
  *
- * Returns a realistic timed-text transcript string.
- * Replace this with the real YouTube timedtext API fetch for production.
+ * Each line is formatted as: `[HH:MM:SS] text`
+ *
+ * @throws {TranscriptNotAvailableError} if the video has no captions.
+ * @throws {Error} on any other network / parsing failure.
  */
 export async function fetchTranscript(videoId: string): Promise<string> {
   console.log(`[fetchTranscript] Fetching transcript for video: ${videoId}`);
 
-  // Simulated network delay
-  await new Promise((r) => setTimeout(r, 50));
+  let items: Array<{ text: string; offset: number; duration: number }>;
 
-  return `[00:00:00] Hey everyone welcome back to the channel
-[00:00:04] Today we're going to be talking about the best budget laptops of 2025
-[00:00:10] But first this video is brought to you by NordVPN
-[00:00:14] Use my link in the description and use promo code TECH to get 73% off
-[00:00:20] Plus an extra four months free on their two year plan
-[00:00:25] NordVPN encrypts your internet traffic and hides your IP address
-[00:00:30] It also has a built in threat protection feature
-[00:00:35] Sign up with my link down below and try it risk free for 30 days
-[00:00:42] Alright so let's get into the laptops
-[00:00:46] The first one I want to talk about is the Lenovo IdeaPad
-[00:00:52] It comes with an AMD Ryzen 5 processor and 16GB of RAM
-[00:01:00] The battery life on this thing is absolutely incredible
-[00:01:06] I was getting around 12 hours of normal use
-[00:01:12] Next up is the Acer Aspire 5
-[00:01:16] This one has an Intel Core i5 and a 512GB SSD
-[00:01:22] The display is really nice for the price
-[00:01:28] You get a 1080p IPS panel with decent color accuracy
-[00:01:35] Alright that wraps up today's video
-[00:01:38] If you found this helpful please like and subscribe`;
+  try {
+    items = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
+  } catch (err) {
+    // youtube-transcript throws YoutubeTranscriptError variants for known failures
+    if (
+      err instanceof YoutubeTranscriptError ||
+      (err instanceof Error && err.message.toLowerCase().includes('transcript'))
+    ) {
+      throw new TranscriptNotAvailableError(videoId);
+    }
+    // Re-throw anything else (network failures, etc.)
+    throw err;
+  }
+
+  if (!items || items.length === 0) {
+    throw new TranscriptNotAvailableError(videoId);
+  }
+
+  // Build the timed-text string that matches the AI system prompt format
+  const formatted = items
+    .map((item) => `${secondsToTimestamp(item.offset / 1000)} ${item.text.trim()}`)
+    .join('\n');
+
+  console.log(
+    `[fetchTranscript] Got ${items.length} transcript entries for video: ${videoId}`,
+  );
+
+  return formatted;
 }
