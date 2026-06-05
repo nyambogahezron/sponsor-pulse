@@ -8,9 +8,10 @@ How to contribute
 - Keep PRs small and focused; include a clear description and the problem it solves.
 
 Development setup
-- Install dependencies at the repository root: `npm install`
-- Run the dev server (if applicable): `npm run dev`
-- Run tests: `npm test` (or `npm run test` where configured)
+- We use a Turborepo monorepo powered by Bun. See the [Development Guide](docs/development.md) for complete details.
+- Install dependencies at the repository root: `bun install`
+- Run all dev servers simultaneously: `bun run dev`
+- Run typechecking and linting: `bun run typecheck` and `bun run lint`
 
 Code style and tests
 - Follow existing TypeScript and formatting conventions.

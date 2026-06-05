@@ -26,28 +26,39 @@ Tech snapshot
 - Client: TypeScript + Vite (Chrome Extension, Manifest V3)
 - Server: Bun + Hono — small, fast AI backend
 
-Quickstart
-1. Start the backend
+## Quickstart
 
+### Prerequisites
+- [Bun](https://bun.sh/) (v1.x or later)
+
+### Installation
+Clone the repository and install dependencies from the root:
 ```bash
-cd server
+git clone https://github.com/nyambogahezron/sponsor-pulse.git
+cd sponsor-pulse
 bun install
-cp .env.example .env
+```
+
+### Running Locally
+To start the development environment (backend server, static site, and extension watcher) all at once:
+```bash
+# Set up the server environment first
+cp apps/server/.env.example apps/server/.env
+
+# Run the dev servers and watch mode
 bun run dev
 ```
 
-2. Build the extension
+### Loading the Extension
+1. Open Chrome and go to `chrome://extensions/`
+2. Enable **Developer mode**
+3. Click **Load unpacked** and select the `apps/extension/dist/` directory.
 
-```bash
-bun install
-bun run build
-```
-
-3. Load in Chrome (`chrome://extensions/` → Load unpacked → `dist/`)
-
-Developer notes
-- Run tests: `npm test` (or `npm run test` inside `server` as appropriate)
-- Follow code style and keep PRs small and focused
+## Developer Notes
+- See the [Development Guide](docs/development.md) for full setup and architecture details.
+- See [Extension Guide](docs/extension.md) for specific details on extension development.
+- Run typechecking across the workspace: `bun run typecheck`
+- Format and lint code: `bun run lint:apply`
 
 Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community standards.
