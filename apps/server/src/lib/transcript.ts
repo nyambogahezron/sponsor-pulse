@@ -15,7 +15,6 @@ function secondsToTimestamp(seconds: number): string {
   return `[${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}]`;
 }
 
-
 export async function fetchTranscript(videoId: string): Promise<string> {
   console.log(`[fetchTranscript] Fetching transcript for video: ${videoId}`);
 
@@ -41,9 +40,7 @@ export async function fetchTranscript(videoId: string): Promise<string> {
     .map((item) => `${secondsToTimestamp(item.offset / 1000)} ${item.text.trim()}`)
     .join('\n');
 
-  console.log(
-    `[fetchTranscript] Got ${items.length} transcript entries for video: ${videoId}`,
-  );
+  console.log(`[fetchTranscript] Got ${items.length} transcript entries for video: ${videoId}`);
 
   return formatted;
 }

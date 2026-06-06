@@ -25,9 +25,7 @@ export function parseSegments(raw: string): SponsorSegment[] {
     return [];
   }
 
-  const candidates = Array.isArray(parsed)
-    ? parsed
-    : (parsed as Record<string, unknown>)?.segments;
+  const candidates = Array.isArray(parsed) ? parsed : (parsed as Record<string, unknown>)?.segments;
 
   if (!Array.isArray(candidates)) {
     console.warn('[parseSegments] Unexpected response shape:', parsed);

@@ -51,7 +51,7 @@ analyze.post('/', async (c) => {
     });
   }
 
-  let provider;
+  let provider: ReturnType<typeof AIProviderFactory.create>;
   try {
     provider = AIProviderFactory.create();
   } catch (err) {
@@ -62,15 +62,12 @@ analyze.post('/', async (c) => {
     );
   }
 
-  let segments;
+  let segments: AnalyzeResponse['segments'];
   try {
     segments = await provider.analyzeTranscript(transcript);
   } catch (err) {
     console.error('[/analyze] AI analysis failed:', err);
-    return c.json<ErrorResponse>(
-      { error: 'AI analysis failed.', code: 'ANALYSIS_FAILED' },
-      502,
-    );
+    return c.json<ErrorResponse>({ error: 'AI analysis failed.', code: 'ANALYSIS_FAILED' }, 502);
   }
 
   return c.json<AnalyzeResponse>({

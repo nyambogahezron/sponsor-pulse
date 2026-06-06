@@ -37,7 +37,6 @@ const PULSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" a
 let currentVideoId: string | null = null;
 let analysisInProgress = false;
 
-
 function isWatchPage(): boolean {
   return window.location.pathname === '/watch';
 }

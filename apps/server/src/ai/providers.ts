@@ -1,7 +1,7 @@
-import type { IAIProvider } from './IAIProvider';
 import type { SponsorSegment } from '../types';
-import { SYSTEM_PROMPT } from './systemPrompt';
+import type { IAIProvider } from './IAIProvider';
 import { parseSegments } from './parseSegments';
+import { SYSTEM_PROMPT } from './systemPrompt';
 
 type ProviderKey = 'gemini' | 'openai' | 'claude' | 'deepseek';
 
@@ -25,7 +25,7 @@ const CONFIGS: Record<ProviderKey, ProviderConfig> = {
     buildUrl: (model, key) =>
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
     buildHeaders: () => ({ 'Content-Type': 'application/json' }),
-    buildBody: (model, transcript) => ({
+    buildBody: (_model, transcript) => ({
       system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{ role: 'user', parts: [{ text: transcript }] }],
       generationConfig: { temperature: 0.0, responseMimeType: 'application/json' },
@@ -136,11 +136,11 @@ class LLMProvider implements IAIProvider {
   }
 }
 
-export class AIProviderFactory {
-  private static instance: IAIProvider | null = null;
+let aiProviderInstance: IAIProvider | null = null;
 
-  static create(): IAIProvider {
-    if (this.instance) return this.instance;
+export const AIProviderFactory = {
+  create(): IAIProvider {
+    if (aiProviderInstance) return aiProviderInstance;
 
     const key = (process.env.ACTIVE_LLM ?? 'gemini').toLowerCase() as ProviderKey;
     if (!CONFIGS[key]) {
@@ -149,12 +149,12 @@ export class AIProviderFactory {
       );
     }
 
-    this.instance = new LLMProvider(key);
-    console.info(`[AIProviderFactory] Active provider: ${this.instance.name}`);
-    return this.instance;
-  }
+    aiProviderInstance = new LLMProvider(key);
+    console.info(`[AIProviderFactory] Active provider: ${aiProviderInstance.name}`);
+    return aiProviderInstance;
+  },
 
-  static reset(): void {
-    this.instance = null;
-  }
-}
+  reset(): void {
+    aiProviderInstance = null;
+  },
+};
