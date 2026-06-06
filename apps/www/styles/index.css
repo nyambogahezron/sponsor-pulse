@@ -107,12 +107,46 @@
   margin-bottom: 40px;
 }
 
-.hero-cta {
+.hero-stats {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 16px;
   justify-content: center;
   margin-bottom: 64px;
+}
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+  transition: all var(--ease);
+}
+
+.stat-pill:hover {
+  background: var(--surface-2);
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+}
+
+.stat-pill svg {
+  width: 18px;
+  height: 18px;
+  fill: var(--sp-red);
+}
+
+.stat-pill strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.stat-pill span {
+  color: var(--muted);
 }
 
 @keyframes bounceY {

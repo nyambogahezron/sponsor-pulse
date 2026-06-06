@@ -1,18 +1,9 @@
-/* ============================================================
-   SponsorPulse — shared base styles for full-page views
-   (welcome, options, stats)
-   All page stylesheets @import this file.
-   ============================================================ */
 @import './shared.css';
 
-/* ── Google Fonts ── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
-/* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 
-/* ── Tokens ── */
 :root {
   --bg:           #0f0f13;
   --surface:      rgba(255, 255, 255, 0.04);
@@ -35,7 +26,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Shared navigation ── */
 .site-nav {
   position: fixed;
   top: 0;
@@ -152,10 +142,8 @@ body {
 
 .nav-btn svg { width: 13px; height: 13px; fill: currentColor; }
 
-/* ── Page wrapper ── */
 .page-body { padding-top: 58px; }
 
-/* ── Section layout ── */
 .section {
   width: 100%;
   max-width: 1000px;
@@ -188,7 +176,6 @@ body {
   max-width: 560px;
 }
 
-/* ── Cards ── */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -202,7 +189,6 @@ body {
   transform: translateY(-2px);
 }
 
-/* ── Buttons ── */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -237,7 +223,6 @@ body {
 
 .btn-outline:hover { background: var(--surface-2); border-color: rgba(255,255,255,0.25); }
 
-/* ── Divider ── */
 .divider-line {
   height: 1px;
   background: var(--border);
@@ -246,7 +231,6 @@ body {
   margin: 0 auto;
 }
 
-/* ── Footer ── */
 .site-footer {
   border-top: 1px solid var(--border);
   padding: 32px;
