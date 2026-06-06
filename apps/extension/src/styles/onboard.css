@@ -43,32 +43,6 @@
   gap: 0;
 }
 
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
-  background: rgba(255, 0, 0, 0.1);
-  border: 1px solid rgba(255, 0, 0, 0.3);
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--sp-red);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  margin-bottom: 24px;
-}
-
-.hero-badge::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--sp-red);
-  box-shadow: 0 0 6px var(--sp-red);
-  animation: pulse 2s ease-in-out infinite;
-}
-
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.3; }
