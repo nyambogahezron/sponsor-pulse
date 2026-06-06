@@ -2,8 +2,8 @@
 # SponsorPulse pre-commit hook
 # Runs Biome check + auto-fix on all staged TypeScript/JS files.
 
-echo "Running Biome linter on src/ ..."
-npx biome check --write src/
+echo "Running Biome linter on apps/ ..."
+npx biome check --write apps/
 
 git add .
 

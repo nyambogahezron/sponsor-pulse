@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
+    "includes": ["apps/**/*.ts", "apps/**/*.tsx", "vite.config.ts"]
   },
   "formatter": {
     "enabled": true,
