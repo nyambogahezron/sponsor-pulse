@@ -1,8 +1,11 @@
 {
   "manifest_version": 3,
   "name": "SponsorPulse",
+  "short_name": "SponsorPulse",
+  "author": "Hezron Nyamboga",
+  "homepage_url": "https://nyambogahezron.github.io/sponsor-pulse/",
   "version": "0.1.0",
-  "description": "Your YouTube companion — spot and manage sponsor segments effortlessly.",
+  "description": "Your YouTube companion to spot and manage sponsor segments effortlessly.",
 
   "icons": {
     "16":  "icons/icon16.png",
