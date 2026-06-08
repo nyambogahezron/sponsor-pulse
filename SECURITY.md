@@ -1,21 +1,26 @@
 # Security Policy
 
+The SponsorPulse team takes the security of our extension and backend services seriously. 
+
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+We currently support the latest major version of the SponsorPulse extension on the Chrome Web Store, as well as the actively deployed `master` branch of the Hono backend.
 
-| Version | Supported          |
+| Component | Supported          |
 | ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| Chrome Extension (Manifest V3) | :white_check_mark: |
+| Hono / Bun Server  | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+If you discover a security vulnerability within SponsorPulse (such as XSS, unauthorized data access, API abuse, or rate-limit bypass), please DO NOT open a public issue.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+Instead, please send a detailed email to `security@sponsorpulse.local` (or the repository owner). 
+
+Please include:
+* A detailed description of the vulnerability.
+* Steps to reproduce the issue.
+* The component affected (Extension, Background Worker, Server API, etc.).
+* Any potential impact on users.
+
+You can expect an initial response within 48 hours. We will keep you updated on the progress of the patch and will publicly disclose the issue only after a fix has been rolled out to the Chrome Web Store and our production servers.
