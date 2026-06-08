@@ -1,18 +1,14 @@
 {
-  "name": "www",
-  "private": true,
+  "name": "@sponsor-pulse/shared",
   "version": "0.1.0",
   "type": "module",
+  "main": "src/index.ts",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
     "check": "tsc --noEmit",
     "lint": "bunx biome check --fix .",
     "format": "bunx biome format --write ."
   },
   "devDependencies": {
-    "typescript": "~6.0.2",
-    "vite": "^8.0.12"
+    "typescript": "~6.0.2"
   }
 }

@@ -1,15 +1,26 @@
 import { zValidator } from '@hono/zod-validator';
+import { SEGMENT_CATEGORIES } from '@sponsor-pulse/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { AIProviderFactory } from '../ai/providers';
 import { fetchTranscript, TranscriptNotAvailableError } from '../lib/transcript';
 import type { AnalyzeResponse, ErrorResponse } from '../types';
 
+const SegmentCategorySchema = z.enum(SEGMENT_CATEGORIES);
+const ServerSponsorSegmentSchema = z.object({
+  start: z.number().min(0),
+  end: z.number().min(0),
+  category: SegmentCategorySchema,
+});
+
 const analyze = new Hono();
 
 const analyzeSchema = z
   .object({
-    videoId: z.string().regex(/^[\w-]{11}$/, 'Invalid videoId format'),
+    videoId: z
+      .string()
+      .length(64)
+      .regex(/^[a-f0-9]{64}$/, 'Invalid hashed videoId format'),
   })
   .strict();
 
@@ -19,7 +30,7 @@ analyze.post(
     if (!result.success) {
       return c.json<ErrorResponse>(
         {
-          error: 'Invalid or missing videoId. Expected exactly 11 characters.',
+          error: 'Invalid or missing videoId. Expected 64-character SHA-256 hash.',
           code: 'INVALID_VIDEO_ID',
         },
         400,
@@ -72,7 +83,16 @@ analyze.post(
 
     let segments: AnalyzeResponse['segments'];
     try {
-      segments = await provider.analyzeTranscript(transcript);
+      const rawSegments = await provider.analyzeTranscript(transcript);
+
+      segments = rawSegments.filter((seg) => {
+        const parsed = ServerSponsorSegmentSchema.safeParse(seg);
+        if (!parsed.success) {
+          console.warn('[/analyze] Stripped hallucinatory/invalid segment:', seg);
+          return false;
+        }
+        return true;
+      });
     } catch (err) {
       console.error('[/analyze] AI analysis failed:', err);
       return c.json<ErrorResponse>({ error: 'AI analysis failed.', code: 'ANALYSIS_FAILED' }, 502);

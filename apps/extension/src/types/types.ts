@@ -1,3 +1,7 @@
+import type { SegmentCategory, ServerSponsorSegment } from '@sponsor-pulse/shared';
+
+export type { SegmentCategory, ServerSponsorSegment };
+
 export interface TimedEntry {
   start: number;
   duration: number;
@@ -10,16 +14,6 @@ export interface TranscriptChunk {
   text: string;
   score: number;
 }
-
-export type SegmentCategory =
-  | 'sponsor'
-  | 'shoutout'
-  | 'course_promo'
-  | 'merch'
-  | 'product_sale'
-  | 'event_promo'
-  | 'intro_creator'
-  | 'intro_external';
 
 export interface SponsorSegment {
   startTime: number;
@@ -54,11 +48,6 @@ export type ButtonState = 'idle' | 'analyzing' | 'sponsor-detected' | 'skipping'
 export interface FetchSponsorsMessage {
   action: 'FETCH_SPONSORS';
   videoId: string;
-}
-export interface ServerSponsorSegment {
-  start: number;
-  end: number;
-  category: SegmentCategory;
 }
 
 export interface FetchSponsorsResponse {

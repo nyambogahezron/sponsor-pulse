@@ -18,6 +18,9 @@
     "apps/extension": {
       "name": "sponsor-pulse-extension",
       "version": "0.1.1-beta",
+      "dependencies": {
+        "@sponsor-pulse/shared": "workspace:*",
+      },
       "devDependencies": {
         "@napi-rs/canvas": "^1.0.0",
         "@types/chrome": "^0.1.42",
@@ -29,6 +32,7 @@
       "name": "sponsor-pulse-server",
       "dependencies": {
         "@hono/zod-validator": "^0.8.0",
+        "@sponsor-pulse/shared": "workspace:*",
         "hono": "^4.12.23",
         "hono-rate-limiter": "^0.5.3",
         "pino": "^10.3.1",
@@ -49,6 +53,13 @@
       "devDependencies": {
         "typescript": "~6.0.2",
         "vite": "^8.0.12",
+      },
+    },
+    "packages/shared": {
+      "name": "@sponsor-pulse/shared",
+      "version": "0.1.0",
+      "devDependencies": {
+        "typescript": "~6.0.2",
       },
     },
   },
@@ -140,6 +151,8 @@
     "@rolldown/binding-win32-x64-msvc": ["@rolldown/binding-win32-x64-msvc@1.0.3", "", { "os": "win32", "cpu": "x64" }, "sha512-eXB7CHuaQdqmJcc3koCNtNPmT/bj2gc999kUFgBxG8Ac0NdgXc4rkCHhqrgrhN3zddvvvrgzj1e90SuSfmyIXA=="],
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
+
+    "@sponsor-pulse/shared": ["@sponsor-pulse/shared@workspace:packages/shared"],
 
     "@turbo/darwin-64": ["@turbo/darwin-64@2.9.16", "", { "os": "darwin", "cpu": "x64" }, "sha512-jLjApWTSNd7JZ5JaLYfelW1ytnGQOvB7ivl+2RD1xQvJTbi8I9gBjzcga7tDZVPyaxpl10YTfJt3BrYXR18KDw=="],
 

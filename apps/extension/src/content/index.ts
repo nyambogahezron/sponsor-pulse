@@ -102,6 +102,7 @@ function mapServerSegment(seg: ServerSponsorSegment): SponsorSegment {
   return {
     startTime: seg.start,
     endTime: seg.end,
+    category: seg.category,
     confidence: 1.0,
     source: 'ai-server',
   };

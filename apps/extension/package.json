@@ -6,7 +6,13 @@
   "scripts": {
     "build": "tsc && vite build",
     "preview": "bunx serve dist",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "check": "tsc -noEmit",
+    "lint": "bunx biome check --fix .",
+    "format": "bunx biome format --write ."
+  },
+  "dependencies": {
+    "@sponsor-pulse/shared": "workspace:*"
   },
   "devDependencies": {
     "@napi-rs/canvas": "^1.0.0",

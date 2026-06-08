@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "start": "bun run src/index.ts",
-    "typecheck": "bunx tsc --noEmit"
+    "check": "tsc --noEmit",
+    "lint": "bunx biome check --fix .",
+    "format": "bunx biome format --write ."
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
@@ -17,6 +19,7 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.8.0",
+    "@sponsor-pulse/shared": "workspace:*",
     "hono": "^4.12.23",
     "hono-rate-limiter": "^0.5.3",
     "pino": "^10.3.1",

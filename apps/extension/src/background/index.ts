@@ -1,3 +1,4 @@
+import { DEFAULT_GAMIFICATION_STATS, DEFAULT_USER_PREFERENCES } from '../types/storage';
 import type {
   FetchSponsorsMessage,
   FetchSponsorsResponse,
@@ -10,7 +11,17 @@ const SERVER_URL = 'http://localhost:3000/api/v1/analyze';
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
-    void chrome.tabs.create({ url: chrome.runtime.getURL('index.html') });
+    chrome.storage.local.set(
+      {
+        userPreferences: DEFAULT_USER_PREFERENCES,
+        creatorWhitelist: [],
+        gamificationStats: DEFAULT_GAMIFICATION_STATS,
+      },
+      () => {
+        console.log(LOG_PREFIX, 'Default storage schema initialized.');
+        void chrome.tabs.create({ url: chrome.runtime.getURL('index.html') });
+      },
+    );
   }
 });
 
@@ -36,10 +47,16 @@ chrome.runtime.onMessage.addListener(
       console.log(LOG_PREFIX, `Fetching sponsors for videoId: ${message.videoId}`);
 
       try {
+        const encoder = new TextEncoder();
+        const encodedData = encoder.encode(message.videoId);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', encodedData);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashedVideoId = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
         const res = await fetch(SERVER_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId: message.videoId }),
+          body: JSON.stringify({ videoId: hashedVideoId }),
         });
 
         if (!res.ok) {

@@ -62,7 +62,7 @@ app.use('*', async (c, next) => {
   const method = c.req.method;
   const path = c.req.path;
 
-  let payload: any | undefined;
+  let payload: unknown | undefined;
   if (method !== 'GET' && method !== 'HEAD') {
     try {
       const clonedReq = c.req.raw.clone();
