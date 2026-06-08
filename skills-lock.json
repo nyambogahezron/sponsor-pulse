@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "chrome-extension-development": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "chrome-extension-development/SKILL.md",
+      "computedHash": "0de6cab64ca8aa87aeb89905a0b08cd5a081c68823894c6e85ae6df14a763b03"
+    },
+    "chrome-extension-ui": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/.experimental/chrome-extension-ui/SKILL.md",
+      "computedHash": "8d488f726ba6a96fb4e7b1265ad1b73507293dd6979114b326ccd4872a26cd43"
+    },
+    "ci-cd-and-automation": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ci-cd-and-automation/SKILL.md",
+      "computedHash": "578b098a7d2352ccdac8b8abdc40eb6803538e81cf8382f138da6188a655087c"
+    },
+    "gemini-interactions-api": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-interactions-api/SKILL.md",
+      "computedHash": "dec60481e9f1948b84904622f1444765eefba2809726893428c7c65c0cd435fc"
+    },
+    "hono-typescript": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "hono-typescript/SKILL.md",
+      "computedHash": "3a6f5fecba6736272630126d3d84c75c737228af925258cd1298c7b24c98e97a"
+    }
+  }
+}
