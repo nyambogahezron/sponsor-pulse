@@ -33,8 +33,16 @@ app.use(
     origin: (origin) => {
       if (!origin) return 'http://localhost:3000';
 
-      const allowedExtension = `chrome-extension://${process.env.EXTENSION_ID}`;
-      if (origin === allowedExtension) return origin;
+      const allowedExtension = process.env.EXTENSION_ID
+        ? `chrome-extension://${process.env.EXTENSION_ID}`
+        : null;
+
+      if (allowedExtension && origin === allowedExtension) return origin;
+
+      // Fallback for local development when EXTENSION_ID is not strictly set
+      if (!allowedExtension && origin.startsWith('chrome-extension://')) {
+        return origin;
+      }
 
       if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
         // Allow local development

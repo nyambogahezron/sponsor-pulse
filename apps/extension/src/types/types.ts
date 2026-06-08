@@ -11,10 +11,21 @@ export interface TranscriptChunk {
   score: number;
 }
 
+export type SegmentCategory =
+  | 'sponsor'
+  | 'shoutout'
+  | 'course_promo'
+  | 'merch'
+  | 'product_sale'
+  | 'event_promo'
+  | 'intro_creator'
+  | 'intro_external';
+
 export interface SponsorSegment {
   startTime: number;
   endTime: number;
   confidence: number;
+  category: SegmentCategory;
   source: 'ai-local' | 'crowdsourced' | 'ai-server';
 }
 
@@ -40,24 +51,17 @@ export const DEFAULT_SKIPPER_SETTINGS: SkipperSettings = {
 
 export type ButtonState = 'idle' | 'analyzing' | 'sponsor-detected' | 'skipping' | 'done';
 
-// ─── Background Worker ↔ Content Script messaging protocol ───────────────────
-
-/** Sent from the content script to the background worker to trigger analysis. */
 export interface FetchSponsorsMessage {
   action: 'FETCH_SPONSORS';
   videoId: string;
 }
-
-/** Raw sponsor segment shape returned by the Hono backend. */
 export interface ServerSponsorSegment {
   start: number;
   end: number;
+  category: SegmentCategory;
 }
 
-/** Sent from the background worker back to the content script. */
 export interface FetchSponsorsResponse {
-  /** Present on success — raw segments from the server. */
   segments?: ServerSponsorSegment[];
-  /** Present on failure — structured error from the server or a network error. */
   error?: { code: string; error: string };
 }
