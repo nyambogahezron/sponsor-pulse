@@ -1,5 +1,5 @@
 {
-  "name": "sponsor-pulse-server",
+  "name": "server",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@hono/zod-validator": "^0.8.0",
-    "@sponsor-pulse/shared": "workspace:*",
     "hono": "^4.12.23",
     "hono-rate-limiter": "^0.5.3",
     "pino": "^10.3.1",

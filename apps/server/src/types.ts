@@ -3,7 +3,7 @@ export type {
   AnalyzeResponse,
   SegmentCategory,
   ServerSponsorSegment as SponsorSegment,
-} from '@sponsor-pulse/shared';
+} from './shared';
 
 export interface ErrorResponse {
   error: string;

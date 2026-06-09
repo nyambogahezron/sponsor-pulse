@@ -1,4 +1,4 @@
-import type { SegmentCategory, ServerSponsorSegment } from '@sponsor-pulse/shared';
+import type { SegmentCategory, ServerSponsorSegment } from './shared';
 
 export type { SegmentCategory, ServerSponsorSegment };
 

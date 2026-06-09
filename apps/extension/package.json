@@ -1,5 +1,5 @@
 {
-  "name": "sponsor-pulse-extension",
+  "name": "extension",
   "private": true,
   "version": "0.1.1-beta",
   "type": "module",
@@ -11,9 +11,7 @@
     "lint": "bunx biome check --fix .",
     "format": "bunx biome format --write ."
   },
-  "dependencies": {
-    "@sponsor-pulse/shared": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@napi-rs/canvas": "^1.0.0",
     "@types/chrome": "^0.1.42",

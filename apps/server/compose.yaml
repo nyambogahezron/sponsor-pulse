@@ -1,7 +1,8 @@
 services:
   server:
     build:
-      context: .
+      context: ../..
+      dockerfile: apps/server/Dockerfile
     environment:
       NODE_ENV: production
     ports:
