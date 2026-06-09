@@ -47,16 +47,10 @@ chrome.runtime.onMessage.addListener(
       console.log(LOG_PREFIX, `Fetching sponsors for videoId: ${message.videoId}`);
 
       try {
-        const encoder = new TextEncoder();
-        const encodedData = encoder.encode(message.videoId);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', encodedData);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashedVideoId = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-
         const res = await fetch(SERVER_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId: hashedVideoId }),
+          body: JSON.stringify({ videoId: message.videoId }),
         });
 
         if (!res.ok) {

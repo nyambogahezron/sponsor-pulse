@@ -5,26 +5,10 @@ import type {
   ServerSponsorSegment,
   SponsorSegment,
 } from '../types/types';
-import { loadSkipperSettings, setButtonState, startSkipper, stopSkipper } from './sponsorSkipper';
 
 const LOG_PREFIX = '[SponsorPulse]';
-const ACTION_BTN_ID = 'sp-analyze-btn';
-const PLAYER_BTN_ID = 'sp-player-btn';
 const STYLE_ID = 'sp-styles';
-
-const ACTION_BAR_SELECTORS: readonly string[] = [
-  'ytd-watch-metadata #top-level-buttons-computed',
-  '#above-the-fold #top-level-buttons-computed',
-  'ytd-video-primary-info-renderer #top-level-buttons-computed',
-];
-
-const PLAYER_BAR_SELECTOR = '.ytp-right-controls';
-
-const TITLE_SELECTORS: readonly string[] = [
-  'ytd-watch-metadata h1 yt-formatted-string',
-  '#above-the-fold h1 yt-formatted-string',
-  'h1.title.ytd-video-primary-info-renderer yt-formatted-string',
-];
+const TOAST_ID = 'sp-toast';
 
 const PULSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" aria-hidden="true">
   <rect x="1"  y="7"  width="2" height="4"  rx="1" opacity="0.5"/>
@@ -35,7 +19,10 @@ const PULSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" a
 </svg>`;
 
 let currentVideoId: string | null = null;
-let analysisInProgress = false;
+let currentVideoSegments: SponsorSegment[] = [];
+let activeToastSegmentIndex: number | null = null;
+let timeUpdateHandler: ((e: Event) => void) | null = null;
+const skippedSegments: Set<number> = new Set();
 
 function isWatchPage(): boolean {
   return window.location.pathname === '/watch';
@@ -45,20 +32,47 @@ function getVideoId(): string | null {
   return new URLSearchParams(window.location.search).get('v');
 }
 
-function getVideoTitle(): string {
-  for (const selector of TITLE_SELECTORS) {
-    const text = document.querySelector<HTMLElement>(selector)?.textContent?.trim();
-    if (text) return text;
-  }
-  return document.title.replace(/\s*[-–]\s*YouTube\s*$/i, '').trim() || 'Unknown title';
-}
-
 function ensureStylesInjected(): void {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = STYLES;
   document.head.appendChild(style);
+}
+
+function mapServerSegment(seg: ServerSponsorSegment): SponsorSegment {
+  return {
+    startTime: seg.start,
+    endTime: seg.end,
+    category: seg.category,
+    confidence: 1.0,
+    source: 'ai-server',
+  };
+}
+
+async function requestSponsorsFromServer(videoId: string): Promise<SponsorSegment[]> {
+  console.log(LOG_PREFIX, `Requesting segments for ${videoId}...`);
+  const message: FetchSponsorsMessage = { action: 'FETCH_SPONSORS', videoId };
+
+  try {
+    const response: FetchSponsorsResponse = await chrome.runtime.sendMessage(message);
+
+    if (response.error) {
+      const { code, error } = response.error;
+      if (code === 'NO_TRANSCRIPT') {
+        console.log(LOG_PREFIX, 'Video has no transcript — no sponsor data possible.');
+        return [];
+      }
+      console.error(LOG_PREFIX, `[${code}] ${error}`);
+      return [];
+    }
+
+    if (!response.segments) return [];
+    return response.segments.map(mapServerSegment);
+  } catch (error) {
+    console.error(LOG_PREFIX, 'Failed to request sponsors:', error);
+    return [];
+  }
 }
 
 function waitForElement<T extends HTMLElement>(
@@ -89,146 +103,165 @@ function waitForElement<T extends HTMLElement>(
   });
 }
 
-async function waitForActionBar(): Promise<HTMLElement | null> {
-  for (const selector of ACTION_BAR_SELECTORS) {
-    const el = await waitForElement<HTMLElement>(selector);
-    if (el) return el;
-  }
-  console.warn(LOG_PREFIX, 'Action bar not found.');
-  return null;
+function formatTimestamp(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function mapServerSegment(seg: ServerSponsorSegment): SponsorSegment {
-  return {
-    startTime: seg.start,
-    endTime: seg.end,
-    category: seg.category,
-    confidence: 1.0,
-    source: 'ai-server',
-  };
-}
-
-async function requestSponsorsFromServer(videoId: string): Promise<SponsorSegment[]> {
-  const message: FetchSponsorsMessage = { action: 'FETCH_SPONSORS', videoId };
-
-  const response: FetchSponsorsResponse = await chrome.runtime.sendMessage(message);
-
-  if (response.error) {
-    const { code, error } = response.error;
-    if (code === 'NO_TRANSCRIPT') {
-      console.log(LOG_PREFIX, 'Video has no transcript — no sponsor data possible.');
-      return [];
-    }
-    throw new Error(`[${code}] ${error}`);
-  }
-
-  if (!response.segments) return [];
-  return response.segments.map(mapServerSegment);
-}
-
-async function runSponsorDetection(videoId: string): Promise<void> {
-  if (analysisInProgress) return;
-
-  analysisInProgress = true;
-  setButtonState('analyzing');
-  console.log(LOG_PREFIX, `Starting sponsor detection for: ${videoId}`);
-
-  try {
-    const crowdsourcedSegments = await fetchCrowdsourcedSegments(videoId);
-    if (crowdsourcedSegments.length > 0) {
-      startSkipper(crowdsourcedSegments);
-      return;
-    }
-
-    console.log(LOG_PREFIX, 'No crowdsourced data — calling SponsorPulse backend...');
-    const segments = await requestSponsorsFromServer(videoId);
-
-    if (segments.length > 0) {
-      startSkipper(segments);
-    } else {
-      console.log(LOG_PREFIX, 'No sponsor segments detected.');
-      setButtonState('done');
-    }
-  } catch (err) {
-    console.error(LOG_PREFIX, 'Sponsor detection failed:', err);
-    setButtonState('idle');
-  } finally {
-    analysisInProgress = false;
-  }
-}
-
-// TODO: replace with actual API call to the crowdsourced backend
-async function fetchCrowdsourcedSegments(_videoId: string): Promise<SponsorSegment[]> {
-  return [];
-}
-
-function onAnalyzeClick(): void {
-  const videoId = getVideoId();
-  if (!videoId) return;
-  console.log(LOG_PREFIX, `Manual analysis triggered — "${getVideoTitle()}"`);
-  stopSkipper();
-  analysisInProgress = false;
-  void runSponsorDetection(videoId);
-}
-
-function createActionBarButton(): HTMLButtonElement {
-  const btn = document.createElement('button');
-  btn.id = ACTION_BTN_ID;
-  btn.setAttribute('aria-label', 'SponsorPulse: analyze this video');
-  btn.setAttribute('data-sp-state', 'idle');
-  btn.innerHTML = `${PULSE_SVG}<span>SponsorPulse</span>`;
-  btn.addEventListener('click', onAnalyzeClick);
-  return btn;
-}
-
-function createPlayerButton(): HTMLButtonElement {
-  const btn = document.createElement('button');
-  btn.id = PLAYER_BTN_ID;
-  btn.className = 'ytp-button';
-  btn.title = 'SponsorPulse — Analyze video';
-  btn.setAttribute('aria-label', 'SponsorPulse: analyze this video');
-  btn.setAttribute('data-sp-state', 'idle');
-  btn.innerHTML = PULSE_SVG;
-  btn.addEventListener('click', onAnalyzeClick);
-  return btn;
-}
-
-async function injectActionBarButton(): Promise<void> {
-  document.getElementById(ACTION_BTN_ID)?.remove();
-  const actionBar = await waitForActionBar();
-  if (!actionBar || document.getElementById(ACTION_BTN_ID)) return;
-  ensureStylesInjected();
-  actionBar.appendChild(createActionBarButton());
-  console.log(LOG_PREFIX, 'Analyze button → action bar.');
-}
-
-async function injectPlayerButton(): Promise<void> {
-  document.getElementById(PLAYER_BTN_ID)?.remove();
-  const playerBar = await waitForElement<HTMLElement>(PLAYER_BAR_SELECTOR);
-  if (!playerBar) {
-    console.warn(LOG_PREFIX, 'Player control bar not found.');
+async function injectTimelineBlocks(): Promise<void> {
+  const progressList = await waitForElement<HTMLElement>('.ytp-progress-list');
+  if (!progressList) {
+    console.warn(LOG_PREFIX, 'Could not find .ytp-progress-list to inject timeline blocks.');
     return;
   }
-  if (document.getElementById(PLAYER_BTN_ID)) return;
-  ensureStylesInjected();
-  playerBar.prepend(createPlayerButton());
-  console.log(LOG_PREFIX, 'Waveform button → player control bar.');
+
+  // Clear existing timeline blocks
+  progressList.querySelectorAll('.sp-timeline-block').forEach((el) => {
+    el.remove();
+  });
+
+  const video = document.querySelector('video');
+  if (!video) return;
+
+  const duration =
+    video.duration ||
+    (await new Promise<number>((resolve) => {
+      if (video.readyState > 0) resolve(video.duration);
+      else video.addEventListener('loadedmetadata', () => resolve(video.duration), { once: true });
+    }));
+
+  if (!duration || duration <= 0) return;
+
+  currentVideoSegments.forEach((segment) => {
+    const block = document.createElement('div');
+    block.className = 'sp-timeline-block';
+    block.setAttribute('data-sp-category', segment.category);
+
+    const leftPercent = (segment.startTime / duration) * 100;
+    const widthPercent = ((segment.endTime - segment.startTime) / duration) * 100;
+
+    block.style.left = `${leftPercent}%`;
+    block.style.width = `${widthPercent}%`;
+
+    // Seek on click
+    block.addEventListener('click', (e) => {
+      e.stopPropagation();
+      video.currentTime = segment.startTime;
+    });
+
+    progressList.appendChild(block);
+  });
 }
 
-async function injectAll(): Promise<void> {
+function hideToast(): void {
+  const toast = document.getElementById(TOAST_ID);
+  if (toast) {
+    toast.classList.remove('sp-toast-visible');
+    activeToastSegmentIndex = null;
+  }
+}
+
+function showToast(segment: SponsorSegment, index: number, video: HTMLVideoElement): void {
+  if (activeToastSegmentIndex === index) return; // Already showing for this segment
+
+  let toast = document.getElementById(TOAST_ID);
+  const player =
+    document.querySelector('#movie_player') ||
+    document.querySelector('.html5-video-player') ||
+    document.body;
+
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = TOAST_ID;
+    player.appendChild(toast);
+  }
+
+  activeToastSegmentIndex = index;
+
+  toast.innerHTML = `
+    <div class="sp-toast-pulse-icon">${PULSE_SVG}</div>
+    <div class="sp-toast-content">
+      <span class="sp-toast-title">${segment.category.replace('_', ' ')} Detected</span>
+      <span class="sp-toast-detail">Ends at ${formatTimestamp(segment.endTime)}</span>
+    </div>
+    <button class="sp-toast-skip-btn">Skip</button>
+  `;
+
+  const skipBtn = toast.querySelector('.sp-toast-skip-btn') as HTMLButtonElement;
+  skipBtn.addEventListener('click', () => {
+    video.currentTime = segment.endTime;
+    skippedSegments.add(index);
+    hideToast();
+  });
+
+  // Small delay to ensure DOM is updated before adding visible class for transition
+  requestAnimationFrame(() => {
+    toast!.classList.add('sp-toast-visible');
+  });
+}
+
+function attachTimeUpdateListener(): void {
+  const video = document.querySelector('video');
+  if (!video) return;
+
+  if (timeUpdateHandler) {
+    video.removeEventListener('timeupdate', timeUpdateHandler);
+  }
+
+  timeUpdateHandler = () => {
+    const currentTime = video.currentTime;
+
+    let segmentToShow: { index: number; segment: SponsorSegment } | null = null;
+
+    for (let i = 0; i < currentVideoSegments.length; i++) {
+      const segment = currentVideoSegments[i];
+      if (skippedSegments.has(i)) continue;
+
+      // 5 seconds before the segment starts, up to the end of the segment
+      if (currentTime >= segment.startTime - 5 && currentTime < segment.endTime) {
+        segmentToShow = { index: i, segment };
+        break;
+      }
+    }
+
+    if (segmentToShow) {
+      showToast(segmentToShow.segment, segmentToShow.index, video);
+    } else {
+      hideToast();
+    }
+  };
+
+  video.addEventListener('timeupdate', timeUpdateHandler);
+}
+
+async function handleNewVideo(): Promise<void> {
   if (!isWatchPage()) return;
 
   const videoId = getVideoId();
   if (!videoId || videoId === currentVideoId) return;
 
-  stopSkipper();
+  // Strict network lifecycle: New video detected. Reset state.
   currentVideoId = videoId;
-  analysisInProgress = false;
+  currentVideoSegments = [];
+  skippedSegments.clear();
+  activeToastSegmentIndex = null;
+  hideToast();
 
-  await loadSkipperSettings();
-  await Promise.all([injectActionBarButton(), injectPlayerButton()]);
-  void runSponsorDetection(videoId);
+  ensureStylesInjected();
+
+  // Make exactly ONE network call
+  currentVideoSegments = await requestSponsorsFromServer(videoId);
+
+  if (currentVideoSegments.length > 0) {
+    console.log(LOG_PREFIX, `Found ${currentVideoSegments.length} segments.`);
+    void injectTimelineBlocks();
+    attachTimeUpdateListener();
+  }
 }
 
-document.addEventListener('yt-navigate-finish', () => void injectAll());
-void injectAll();
+// Ensure clean one-call lifecycle using yt-navigate-finish
+document.addEventListener('yt-navigate-finish', () => void handleNewVideo());
+
+// Initial run for direct loads
+void handleNewVideo();

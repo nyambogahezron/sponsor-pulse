@@ -44,10 +44,6 @@ SponsorPulse doesn't just skip ads. It uses AI to intelligently categorize diffe
 ![Creator Intro](https://img.shields.io/badge/Creator_Intro-FF4500?style=flat)
 ![External Intro](https://img.shields.io/badge/External_Intro-8A2BE2?style=flat)
 
-Tech snapshot
-- Client: TypeScript + Vite (Chrome Extension, Manifest V3)
-- Server: Bun + Hono — small, fast AI backend
-
 ## Quickstart
 
 ### Prerequisites

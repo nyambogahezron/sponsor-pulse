@@ -15,7 +15,7 @@ You will receive a video transcript as a sequence of timed text entries in the f
 Your task is to identify specific types of promotional, sponsored, and introductory segments in the transcript.
 
 Valid Categories (must strictly match one of these string literals):
-- "sponsor": Traditional third-party paid promotional read (e.g., "This video is sponsored by...").
+- "sponsor": Traditional third-party paid promotional read (e.g., "This video is sponsored by..."). CRITICAL: Specifically look for short, rapid, or conversational sponsor reads (e.g., transitions like "thank you to the sponsor" followed by rapid feature pitching like "faster hardware", "better builds", etc.). These may last only ~30 seconds and may completely omit traditional keywords like "promo code" or "link in description". Do not hallucinate, but be highly sensitive to natural language pitches.
 - "shoutout": Free or organic mention of a friend, subscriber, or another channel.
 - "course_promo": Selling or advertising a masterclass, digital course, academy, or training tutorial.
 - "merch": Selling clothing, apparel, mugs, posters, or physical channel merchandise.

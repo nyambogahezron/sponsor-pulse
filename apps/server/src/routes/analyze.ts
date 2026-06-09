@@ -17,10 +17,7 @@ const analyze = new Hono();
 
 const analyzeSchema = z
   .object({
-    videoId: z
-      .string()
-      .length(64)
-      .regex(/^[a-f0-9]{64}$/, 'Invalid hashed videoId format'),
+    videoId: z.string().min(10).max(20),
   })
   .strict();
 
@@ -30,7 +27,7 @@ analyze.post(
     if (!result.success) {
       return c.json<ErrorResponse>(
         {
-          error: 'Invalid or missing videoId. Expected 64-character SHA-256 hash.',
+          error: 'Invalid or missing videoId. Expected standard YouTube video ID.',
           code: 'INVALID_VIDEO_ID',
         },
         400,
