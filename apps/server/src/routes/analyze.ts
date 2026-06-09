@@ -5,6 +5,7 @@ import { SEGMENT_CATEGORIES } from '../shared';
 import { AIProviderFactory } from '../ai/providers';
 import { fetchTranscript, TranscriptNotAvailableError } from '../lib/transcript';
 import type { AnalyzeResponse, ErrorResponse } from '../types';
+import { incrementFailureCount, incrementSuccessCount } from './health';
 
 const SegmentCategorySchema = z.enum(SEGMENT_CATEGORIES);
 const ServerSponsorSegmentSchema = z.object({
@@ -92,10 +93,12 @@ analyze.post(
         return true;
       });
     } catch (err) {
+      incrementFailureCount();
       console.error('[/analyze] AI analysis failed:', err);
       return c.json<ErrorResponse>({ error: 'AI analysis failed.', code: 'ANALYSIS_FAILED' }, 502);
     }
 
+    incrementSuccessCount();
     return c.json<AnalyzeResponse>({
       videoId,
       segments,

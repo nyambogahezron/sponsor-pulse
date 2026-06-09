@@ -11,7 +11,7 @@ import type {
 } from '../types/types';
 
 const LOG_PREFIX = '[SponsorPulse:BG]';
-const SERVER_URL = 'http://localhost:3000/api/v1/analyze';
+const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1/analyze';
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {

@@ -91,29 +91,6 @@ Basic health check endpoint.
 
 ---
 
-## 🏗️ Project Structure
-
-\`\`\`text
-server/
-├── src/
-│   ├── index.ts                  # Hono app + Bun server entry point
-│   ├── types.ts                  # Shared request/response TS interfaces
-│   ├── ai/
-│   │   ├── IAIProvider.ts        # Contract interface for all AI providers
-│   │   ├── providers.ts          # Unified LLM provider implementations & Factory
-│   │   ├── systemPrompt.ts       # Shared optimized prompt forcing strict JSON
-│   │   └── parseSegments.ts      # JSON parsing, validation, and envelope unwrapping
-│   ├── routes/
-│   │   └── analyze.ts            # POST /api/v1/analyze handler logic
-│   └── lib/
-│       └── transcript.ts         # Transcript fetching (currently mock data)
-├── postman_collection.json       # Exported Postman collection for local testing
-├── .env.example
-└── package.json
-\`\`\`
-
----
-
 ## 🧪 Testing
 
 A Postman collection is included in the root of this project (`postman_collection.json`). 

@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 
 const healthRoute = new Hono();
 
-// Mock counters (these would typically be stored in a DB or memory cache like Redis)
+// In-memory counters for analysis requests
 let analysisSuccessCount = 0;
 let analysisFailureCount = 0;
 
@@ -30,7 +30,7 @@ healthRoute.get('/', (c) => {
       },
     },
     aiModelState: {
-      provider: process.env.AI_PROVIDER || 'mocked',
+      provider: process.env.ACTIVE_LLM || 'gemini',
       status: 'ready',
     },
   });
