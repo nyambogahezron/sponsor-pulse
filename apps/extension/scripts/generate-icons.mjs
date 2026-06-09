@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-/**
- * scripts/generate-icons.mjs
- */
 
 import { createCanvas } from '@napi-rs/canvas';
 import { writeFileSync, mkdirSync } from 'fs';
@@ -13,45 +10,44 @@ const OUTPUT_DIR = join(__dirname, '..', 'public', 'icons');
 const SIZES = [16, 48, 128];
 
 const BRAND = {
-  gradientStart: '#ff0000',
-  gradientEnd: '#cc0000',
-  bars: '#ffffff',
+  bgStart: '#ff0000', 
+  bgEnd: '#cc0000', 
+  bars: '#ffffff', 
 };
 
-function drawWaveform(ctx, size) {
-  const BAR_COUNT = 5;
-  const REL_HEIGHTS = [0.25, 0.55, 1.0, 0.55, 0.25];
+function drawPulsePlay(ctx, size) {
+  const w = size;
+  const h = size;
+  const cy = h / 2;
 
-  const waveW = size * 0.60;
-  const barW = Math.max(2, Math.round(waveW / (BAR_COUNT * 2 - 1)));
-  const gap = barW;
-  const totalW = BAR_COUNT * barW + (BAR_COUNT - 1) * gap;
-  const startX = (size - totalW) / 2;
-
-  const maxBarH = size * 0.62;
-  const centerY = size / 2;
-
+  ctx.strokeStyle = BRAND.bars;
   ctx.fillStyle = BRAND.bars;
+  ctx.lineWidth = size * 0.08;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
 
-  for (let i = 0; i < BAR_COUNT; i++) {
-    const barH = maxBarH * REL_HEIGHTS[i];
-    const x = startX + i * (barW + gap);
-    const y = centerY - barH / 2;
-    const r = barW / 2;
+  // subtle white glow
+  ctx.shadowColor = BRAND.bars;
+  ctx.shadowBlur = size * 0.05;
 
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + barW - r, y);
-    ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
-    ctx.lineTo(x + barW, y + barH - r);
-    ctx.quadraticCurveTo(x + barW, y + barH, x + barW - r, y + barH);
-    ctx.lineTo(x + r, y + barH);
-    ctx.quadraticCurveTo(x, y + barH, x, y + barH - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-    ctx.fill();
-  }
+  // Draw the pulse line
+  ctx.beginPath();
+  ctx.moveTo(w * 0.15, cy);
+  ctx.lineTo(w * 0.30, cy);
+  ctx.lineTo(w * 0.40, cy - h * 0.25); // peak up
+  ctx.lineTo(w * 0.50, cy + h * 0.25); // peak down
+  ctx.lineTo(w * 0.60, cy); // back to center, connecting to the play button
+  ctx.stroke();
+
+  // Draw and fill the play button
+  ctx.beginPath();
+  ctx.moveTo(w * 0.60, cy - h * 0.28); // top of play button
+  ctx.lineTo(w * 0.88, cy); // tip of play button
+  ctx.lineTo(w * 0.60, cy + h * 0.28); // bottom of play button
+  ctx.closePath();
+  
+  ctx.stroke(); // stroke first to blend with pulse line thickness
+  ctx.fill();   // then fill
 }
 
 function generateIcon(size) {
@@ -60,10 +56,11 @@ function generateIcon(size) {
 
   const radius = size * 0.22;
 
-  const grad = ctx.createLinearGradient(0, 0, size, size);
-  grad.addColorStop(0, BRAND.gradientStart);
-  grad.addColorStop(1, BRAND.gradientEnd);
+  const gradBg = ctx.createLinearGradient(0, 0, size, size);
+  gradBg.addColorStop(0, BRAND.bgStart);
+  gradBg.addColorStop(1, BRAND.bgEnd);
 
+  // Draw rounded rectangle background
   ctx.beginPath();
   ctx.moveTo(radius, 0);
   ctx.lineTo(size - radius, 0);
@@ -76,15 +73,21 @@ function generateIcon(size) {
   ctx.quadraticCurveTo(0, 0, radius, 0);
   ctx.closePath();
 
-  ctx.fillStyle = grad;
+  ctx.fillStyle = gradBg;
   ctx.fill();
 
   if (size >= 48) {
-    drawWaveform(ctx, size);
+    drawPulsePlay(ctx, size);
   } else {
+    // For very small icon (16x16), simplify to just a solid white play button
     ctx.fillStyle = BRAND.bars;
+    ctx.shadowBlur = 0; 
+
     ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size * 0.22, 0, Math.PI * 2);
+    ctx.moveTo(size * 0.3, size * 0.2);
+    ctx.lineTo(size * 0.8, size * 0.5);
+    ctx.lineTo(size * 0.3, size * 0.8);
+    ctx.closePath();
     ctx.fill();
   }
 
@@ -100,4 +103,4 @@ for (const size of SIZES) {
   console.log(`✓ ${outPath} (${size}×${size})`);
 }
 
-console.log('\n All icons generated in public/icons/');
+console.log('\n All modern pulse icons generated in public/icons/');

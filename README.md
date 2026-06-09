@@ -1,7 +1,7 @@
 <!-- Modernized README with logo and animated demo -->
 
 <p align="center">
-  <img src="docs/assets/logo.svg" alt="SponsorPulse logo" width="160" />
+  <img src="/assets/logo.png" alt="SponsorPulse logo" width="160" />
 </p>
 
 # SponsorPulse
@@ -9,7 +9,7 @@
 SponsorPulse is a lightweight, privacy-first Chrome extension that detects and skips sponsored segments in YouTube videos using an AI-powered transcript analysis pipeline.
 
 <p align="center">
-  <img src="docs/assets/demo.svg" alt="SponsorPulse demo" width="780" />
+  <img src="/assets/demo.png" alt="SponsorPulse demo" width="780" />
 </p>
 
 Why SponsorPulse?
@@ -21,6 +21,28 @@ Highlights
 - Auto-skip detected sponsor segments
 - Manual overlay with keyboard shortcuts: `S` (skip), `D` (dismiss)
 - Pluggable backend adapters for multiple LLM providers
+
+## Capabilities
+
+### 🤖 Supported AI Providers
+We natively support top-tier LLMs for transcript analysis. Bring your own API key:
+
+![Gemini](https://img.shields.io/badge/Gemini-8E75B2?style=for-the-badge&logo=googlebard&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
+![Claude](https://img.shields.io/badge/Claude-D97757?style=for-the-badge&logo=anthropic&logoColor=white)
+![DeepSeek](https://img.shields.io/badge/DeepSeek-4D6BFE?style=for-the-badge)
+
+### 🎯 Multi-Category Detection
+SponsorPulse doesn't just skip ads. It uses AI to intelligently categorize different types of promotions and filler content within the video timeline:
+
+![Sponsor](https://img.shields.io/badge/Sponsor-FFD700?style=flat)
+![Shoutout](https://img.shields.io/badge/Shoutout-00BFFF?style=flat)
+![Course Promo](https://img.shields.io/badge/Course_Promo-FFA500?style=flat)
+![Merch](https://img.shields.io/badge/Merch-FF69B4?style=flat)
+![Product Sale](https://img.shields.io/badge/Product_Sale-32CD32?style=flat)
+![Event Promo](https://img.shields.io/badge/Event_Promo-9370DB?style=flat)
+![Creator Intro](https://img.shields.io/badge/Creator_Intro-FF4500?style=flat)
+![External Intro](https://img.shields.io/badge/External_Intro-8A2BE2?style=flat)
 
 Tech snapshot
 - Client: TypeScript + Vite (Chrome Extension, Manifest V3)
