@@ -136,25 +136,25 @@ class LLMProvider implements IAIProvider {
   }
 }
 
-let aiProviderInstance: IAIProvider | null = null;
+let aiProviderInstances: Record<string, IAIProvider> = {};
 
 export const AIProviderFactory = {
-  create(): IAIProvider {
-    if (aiProviderInstance) return aiProviderInstance;
-
-    const key = (process.env.ACTIVE_LLM ?? 'gemini').toLowerCase() as ProviderKey;
+  create(requestedProvider?: string): IAIProvider {
+    const key = (requestedProvider ?? process.env.ACTIVE_LLM ?? 'gemini').toLowerCase() as ProviderKey;
     if (!CONFIGS[key]) {
       throw new Error(
-        `Unknown ACTIVE_LLM "${key}". Valid values: ${Object.keys(CONFIGS).join(', ')}`,
+        `Unknown provider "${key}". Valid values: ${Object.keys(CONFIGS).join(', ')}`,
       );
     }
 
-    aiProviderInstance = new LLMProvider(key);
-    console.info(`[AIProviderFactory] Active provider: ${aiProviderInstance.name}`);
-    return aiProviderInstance;
+    if (aiProviderInstances[key]) return aiProviderInstances[key];
+
+    aiProviderInstances[key] = new LLMProvider(key);
+    console.info(`[AIProviderFactory] Initialized provider: ${aiProviderInstances[key].name}`);
+    return aiProviderInstances[key];
   },
 
   reset(): void {
-    aiProviderInstance = null;
+    aiProviderInstances = {};
   },
 };

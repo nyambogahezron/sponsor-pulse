@@ -12,10 +12,15 @@ export type GamificationStats = {
   totalSegmentsSkipped: Record<SegmentCategory, number>;
 };
 
+export type AIProvider = 'gemini' | 'openai' | 'claude' | 'deepseek';
+
 export interface LocalStorageSchema {
   userPreferences: UserPreferences;
   creatorWhitelist: string[];
   gamificationStats: GamificationStats;
+  aiProvider: AIProvider;
+  enabled: boolean;
+  showNotification: boolean;
 }
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {
@@ -41,4 +46,10 @@ export const DEFAULT_GAMIFICATION_STATS: GamificationStats = {
     intro_creator: 0,
     intro_external: 0,
   },
+};
+
+export const DEFAULT_GLOBAL_SETTINGS = {
+  aiProvider: 'gemini' as AIProvider,
+  enabled: true,
+  showNotification: true,
 };

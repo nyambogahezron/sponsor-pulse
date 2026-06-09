@@ -18,6 +18,7 @@ const analyze = new Hono();
 const analyzeSchema = z
   .object({
     videoId: z.string().min(10).max(20),
+    provider: z.enum(['gemini', 'openai', 'claude', 'deepseek']).optional(),
   })
   .strict();
 
@@ -35,7 +36,7 @@ analyze.post(
     }
   }),
   async (c) => {
-    const { videoId } = c.req.valid('json');
+    const { videoId, provider: requestedProvider } = c.req.valid('json');
 
     let transcript: string;
     try {
@@ -67,9 +68,9 @@ analyze.post(
       });
     }
 
-    let provider: ReturnType<typeof AIProviderFactory.create>;
+    let providerInstance: ReturnType<typeof AIProviderFactory.create>;
     try {
-      provider = AIProviderFactory.create();
+      providerInstance = AIProviderFactory.create(requestedProvider);
     } catch (err) {
       console.error('[/analyze] Provider init failed:', err);
       return c.json<ErrorResponse>(
@@ -80,7 +81,7 @@ analyze.post(
 
     let segments: AnalyzeResponse['segments'];
     try {
-      const rawSegments = await provider.analyzeTranscript(transcript);
+      const rawSegments = await providerInstance.analyzeTranscript(transcript);
 
       segments = rawSegments.filter((seg) => {
         const parsed = ServerSponsorSegmentSchema.safeParse(seg);
@@ -98,7 +99,7 @@ analyze.post(
     return c.json<AnalyzeResponse>({
       videoId,
       segments,
-      provider: provider.name,
+      provider: providerInstance.name,
       analyzedAt: Date.now(),
     });
   },

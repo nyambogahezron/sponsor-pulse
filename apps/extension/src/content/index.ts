@@ -1,4 +1,6 @@
 import STYLES from '../styles/content.css?inline';
+import { DEFAULT_GLOBAL_SETTINGS, DEFAULT_USER_PREFERENCES } from '../types/storage';
+import type { UserPreferences, LocalStorageSchema } from '../types/storage';
 import type {
   FetchSponsorsMessage,
   FetchSponsorsResponse,
@@ -23,6 +25,8 @@ let currentVideoSegments: SponsorSegment[] = [];
 let activeToastSegmentIndex: number | null = null;
 let timeUpdateHandler: ((e: Event) => void) | null = null;
 const skippedSegments: Set<number> = new Set();
+let userPrefs: UserPreferences = { ...DEFAULT_USER_PREFERENCES };
+let showNotification = DEFAULT_GLOBAL_SETTINGS.showNotification;
 
 function isWatchPage(): boolean {
   return window.location.pathname === '/watch';
@@ -218,6 +222,16 @@ function attachTimeUpdateListener(): void {
       const segment = currentVideoSegments[i];
       if (skippedSegments.has(i)) continue;
 
+      // Auto-skip logic overrides the toast if enabled
+      if (currentTime >= segment.startTime && currentTime < segment.endTime) {
+        if (userPrefs[segment.category]?.autoSkip) {
+          video.currentTime = segment.endTime;
+          skippedSegments.add(i);
+          hideToast();
+          continue;
+        }
+      }
+
       // 5 seconds before the segment starts, up to the end of the segment
       if (currentTime >= segment.startTime - 5 && currentTime < segment.endTime) {
         segmentToShow = { index: i, segment };
@@ -226,7 +240,9 @@ function attachTimeUpdateListener(): void {
     }
 
     if (segmentToShow) {
-      showToast(segmentToShow.segment, segmentToShow.index, video);
+      if (showNotification) {
+        showToast(segmentToShow.segment, segmentToShow.index, video);
+      }
     } else {
       hideToast();
     }
@@ -249,6 +265,10 @@ async function handleNewVideo(): Promise<void> {
   hideToast();
 
   ensureStylesInjected();
+
+  const result = (await chrome.storage.local.get(['userPreferences', 'showNotification'])) as Partial<LocalStorageSchema>;
+  userPrefs = result.userPreferences ?? DEFAULT_USER_PREFERENCES;
+  showNotification = result.showNotification ?? DEFAULT_GLOBAL_SETTINGS.showNotification;
 
   // Make exactly ONE network call
   currentVideoSegments = await requestSponsorsFromServer(videoId);

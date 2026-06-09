@@ -1,18 +1,6 @@
-type Sensitivity = 'low' | 'medium' | 'high';
-
-interface StorageData {
-  enabled: boolean;
-  autoSkip: boolean;
-  showNotification: boolean;
-  aiFallbackSensitivity: Sensitivity;
-}
-
-const DEFAULTS: StorageData = {
-  enabled: true,
-  autoSkip: false,
-  showNotification: true,
-  aiFallbackSensitivity: 'medium',
-};
+import { DEFAULT_GLOBAL_SETTINGS, DEFAULT_USER_PREFERENCES } from '../types/storage';
+import type { LocalStorageSchema, UserPreferences, AIProvider } from '../types/storage';
+import type { SegmentCategory } from '../types/types';
 
 function getEl<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -24,44 +12,67 @@ const enableToggle = getEl<HTMLInputElement>('enable-toggle');
 const statusBadge = getEl<HTMLSpanElement>('status-badge');
 const statusText = getEl<HTMLSpanElement>('status-text');
 const settingsPanel = getEl<HTMLDivElement>('settings-panel');
-const autoSkipToggle = getEl<HTMLInputElement>('auto-skip-toggle');
 const notificationToggle = getEl<HTMLInputElement>('notification-toggle');
-const sensitivitySelect = getEl<HTMLSelectElement>('sensitivity-select');
+const aiProviderSelect = getEl<HTMLSelectElement>('ai-provider-select');
+const categoryTogglesContainer = getEl<HTMLDivElement>('category-toggles-container');
+
+let currentPreferences: UserPreferences = { ...DEFAULT_USER_PREFERENCES };
 
 function applyEnabled(enabled: boolean): void {
   enableToggle.checked = enabled;
   statusBadge.classList.toggle('active', enabled);
   statusText.textContent = enabled ? 'Active' : 'Inactive';
-  // Dim settings panel when extension is globally disabled
   settingsPanel.classList.toggle('disabled', !enabled);
 }
 
-function applyAutoSkip(autoSkip: boolean): void {
-  autoSkipToggle.checked = autoSkip;
-}
-
-function applyNotification(showNotification: boolean): void {
-  notificationToggle.checked = showNotification;
-}
-
-function applySensitivity(sensitivity: Sensitivity): void {
-  sensitivitySelect.value = sensitivity;
-}
-
-function applyAll(data: StorageData): void {
-  applyEnabled(data.enabled);
-  applyAutoSkip(data.autoSkip);
-  applyNotification(data.showNotification);
-  applySensitivity(data.aiFallbackSensitivity);
-}
-
-async function load(): Promise<StorageData> {
-  const result = await chrome.storage.local.get(Object.keys(DEFAULTS));
-  return { ...DEFAULTS, ...(result as Partial<StorageData>) };
-}
-
-function save(patch: Partial<StorageData>): void {
+function save(patch: Partial<LocalStorageSchema>): void {
   void chrome.storage.local.set(patch);
+}
+
+function createCategoryToggle(category: SegmentCategory, autoSkip: boolean) {
+  const row = document.createElement('div');
+  row.className = 'setting-row';
+  
+  const formattedCategory = category.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+  
+  row.innerHTML = `
+    <div class="setting-info">
+      <span class="setting-label">${formattedCategory}</span>
+      <span class="setting-desc">Auto-skip ${formattedCategory.toLowerCase()}</span>
+    </div>
+    <label class="switch" aria-label="Auto-skip ${formattedCategory}">
+      <input type="checkbox" id="toggle-${category}" ${autoSkip ? 'checked' : ''} />
+      <span class="switch-track"></span>
+    </label>
+  `;
+
+  const input = row.querySelector(`#toggle-${category}`) as HTMLInputElement;
+  input.addEventListener('change', () => {
+    currentPreferences[category].autoSkip = input.checked;
+    save({ userPreferences: currentPreferences });
+  });
+
+  return row;
+}
+
+async function init(): Promise<void> {
+  const result = (await chrome.storage.local.get(['enabled', 'showNotification', 'aiProvider', 'userPreferences'])) as Partial<LocalStorageSchema>;
+  
+  const enabled = result.enabled ?? DEFAULT_GLOBAL_SETTINGS.enabled;
+  const showNotification = result.showNotification ?? DEFAULT_GLOBAL_SETTINGS.showNotification;
+  const aiProvider = result.aiProvider ?? DEFAULT_GLOBAL_SETTINGS.aiProvider;
+  currentPreferences = result.userPreferences ?? DEFAULT_USER_PREFERENCES;
+
+  applyEnabled(enabled);
+  notificationToggle.checked = showNotification;
+  aiProviderSelect.value = aiProvider;
+
+  categoryTogglesContainer.innerHTML = '';
+  for (const category of Object.keys(currentPreferences) as SegmentCategory[]) {
+    categoryTogglesContainer.appendChild(
+      createCategoryToggle(category, currentPreferences[category].autoSkip)
+    );
+  }
 }
 
 enableToggle.addEventListener('change', () => {
@@ -70,24 +81,12 @@ enableToggle.addEventListener('change', () => {
   save({ enabled });
 });
 
-autoSkipToggle.addEventListener('change', () => {
-  const autoSkip = autoSkipToggle.checked;
-  save({ autoSkip });
-});
-
 notificationToggle.addEventListener('change', () => {
-  const showNotification = notificationToggle.checked;
-  save({ showNotification });
+  save({ showNotification: notificationToggle.checked });
 });
 
-sensitivitySelect.addEventListener('change', () => {
-  const aiFallbackSensitivity = sensitivitySelect.value as Sensitivity;
-  save({ aiFallbackSensitivity });
+aiProviderSelect.addEventListener('change', () => {
+  save({ aiProvider: aiProviderSelect.value as AIProvider });
 });
-
-async function init(): Promise<void> {
-  const data = await load();
-  applyAll(data);
-}
 
 void init();

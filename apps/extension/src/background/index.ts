@@ -1,4 +1,8 @@
-import { DEFAULT_GAMIFICATION_STATS, DEFAULT_USER_PREFERENCES } from '../types/storage';
+import {
+  DEFAULT_GAMIFICATION_STATS,
+  DEFAULT_GLOBAL_SETTINGS,
+  DEFAULT_USER_PREFERENCES,
+} from '../types/storage';
 import type {
   FetchSponsorsMessage,
   FetchSponsorsResponse,
@@ -16,6 +20,7 @@ chrome.runtime.onInstalled.addListener((details) => {
         userPreferences: DEFAULT_USER_PREFERENCES,
         creatorWhitelist: [],
         gamificationStats: DEFAULT_GAMIFICATION_STATS,
+        ...DEFAULT_GLOBAL_SETTINGS,
       },
       () => {
         console.log(LOG_PREFIX, 'Default storage schema initialized.');
@@ -47,10 +52,13 @@ chrome.runtime.onMessage.addListener(
       console.log(LOG_PREFIX, `Fetching sponsors for videoId: ${message.videoId}`);
 
       try {
+        const result = await chrome.storage.local.get(['aiProvider']);
+        const provider = result.aiProvider || 'gemini';
+
         const res = await fetch(SERVER_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId: message.videoId }),
+          body: JSON.stringify({ videoId: message.videoId, provider }),
         });
 
         if (!res.ok) {
@@ -74,7 +82,6 @@ chrome.runtime.onMessage.addListener(
 
         sendResponse({ segments: data.segments });
       } catch (err) {
-        // Network-level failure: server is offline, DNS failure, etc.
         const message = err instanceof Error ? err.message : String(err);
         console.error(LOG_PREFIX, 'Server unreachable:', message);
         sendResponse({

@@ -48,16 +48,18 @@
     <div class="settings-section" id="settings-panel">
       <p class="settings-heading">Settings</p>
 
-      <!-- Auto-skip -->
+      <!-- AI Provider -->
       <div class="setting-row">
         <div class="setting-info">
-          <span class="setting-label">Auto-skip sponsors</span>
-          <span class="setting-desc">Jump over detected segments</span>
+          <span class="setting-label">AI Provider</span>
+          <span class="setting-desc">Which AI model to use</span>
         </div>
-        <label class="switch" aria-label="Auto-skip sponsor segments">
-          <input type="checkbox" id="auto-skip-toggle" />
-          <span class="switch-track"></span>
-        </label>
+        <select id="ai-provider-select" aria-label="AI Provider">
+          <option value="gemini">Gemini</option>
+          <option value="openai">OpenAI</option>
+          <option value="claude">Claude</option>
+          <option value="deepseek">DeepSeek</option>
+        </select>
       </div>
 
       <!-- Show notification -->
@@ -72,17 +74,9 @@
         </label>
       </div>
 
-      <!-- AI sensitivity -->
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">AI sensitivity</span>
-          <span class="setting-desc">Fallback detection threshold</span>
-        </div>
-        <select id="sensitivity-select" aria-label="AI fallback sensitivity">
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
+      <p class="settings-heading" style="margin-top: 1rem;">Auto-skip Categories</p>
+      <div id="category-toggles-container" style="display: flex; flex-direction: column; gap: 8px;">
+        <!-- Dynamically populated by popup.ts -->
       </div>
     </div>
 
