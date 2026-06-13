@@ -7,40 +7,42 @@ export class TranscriptNotAvailableError extends Error {
   }
 }
 
-function secondsToTimestamp(seconds: number): string {
-  const totalSeconds = Math.floor(seconds);
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  return `[${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}]`;
+function formatSecondsAsTimestamp(totalSeconds: number): string {
+  const roundedSeconds = Math.floor(totalSeconds);
+  const hours = Math.floor(roundedSeconds / 3600);
+  const minutes = Math.floor((roundedSeconds % 3600) / 60);
+  const seconds = roundedSeconds % 60;
+  return `[${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}]`;
 }
 
 export async function fetchTranscript(videoId: string): Promise<string> {
   console.log(`[fetchTranscript] Fetching transcript for video: ${videoId}`);
 
-  let items: Array<{ text: string; offset: number; duration: number }>;
+  let transcriptItems: Array<{ text: string; offset: number; duration: number }>;
 
   try {
-    items = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
-  } catch (err) {
+    transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
+  } catch (fetchError) {
     if (
-      err instanceof YoutubeTranscriptError ||
-      (err instanceof Error && err.message.toLowerCase().includes('transcript'))
+      fetchError instanceof YoutubeTranscriptError ||
+      (fetchError instanceof Error && fetchError.message.toLowerCase().includes('transcript'))
     ) {
       throw new TranscriptNotAvailableError(videoId);
     }
-    throw err;
+    throw fetchError;
   }
 
-  if (!items || items.length === 0) {
+  if (!transcriptItems || transcriptItems.length === 0) {
     throw new TranscriptNotAvailableError(videoId);
   }
 
-  const formatted = items
-    .map((item) => `${secondsToTimestamp(item.offset / 1000)} ${item.text.trim()}`)
+  const formattedTranscriptText = transcriptItems
+    .map((item) => `${formatSecondsAsTimestamp(item.offset / 1000)} ${item.text.trim()}`)
     .join('\n');
 
-  console.log(`[fetchTranscript] Got ${items.length} transcript entries for video: ${videoId}`);
+  console.log(
+    `[fetchTranscript] Got ${transcriptItems.length} transcript entries for video: ${videoId}`,
+  );
 
-  return formatted;
+  return formattedTranscriptText;
 }

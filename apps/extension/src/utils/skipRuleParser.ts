@@ -79,16 +79,13 @@ export async function loadRules(): Promise<SkipRule[]> {
 }
 
 export function describeRule(rule: SkipRule): string {
-  const formattedValue =
-    typeof rule.value === 'number' ? `${rule.value}s` : `"${rule.value}"`;
+  const formattedValue = typeof rule.value === 'number' ? `${rule.value}s` : `"${rule.value}"`;
   return `if ${rule.attribute} ${rule.operator} ${formattedValue} → ${rule.action.replace('-', ' ')}`;
 }
 
 export const NUMERIC_OPERATORS: SkipRule['operator'][] = ['>', '<', '>=', '<=', '==', '!='];
 export const STRING_OPERATORS: SkipRule['operator'][] = ['==', '!=', 'contains'];
 
-export function getOperatorsForAttribute(
-  attribute: SkipRule['attribute'],
-): SkipRule['operator'][] {
+export function getOperatorsForAttribute(attribute: SkipRule['attribute']): SkipRule['operator'][] {
   return attribute === 'category' ? STRING_OPERATORS : NUMERIC_OPERATORS;
 }

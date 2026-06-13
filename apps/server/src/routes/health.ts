@@ -2,25 +2,29 @@ import { Hono } from 'hono';
 
 const healthRoute = new Hono();
 
-// In-memory counters for analysis requests
 let analysisSuccessCount = 0;
 let analysisFailureCount = 0;
 
-export const incrementSuccessCount = () => analysisSuccessCount++;
-export const incrementFailureCount = () => analysisFailureCount++;
+export const incrementSuccessCount = (): void => {
+  analysisSuccessCount++;
+};
 
-healthRoute.get('/', (c) => {
-  const memoryUsage = process.memoryUsage();
+export const incrementFailureCount = (): void => {
+  analysisFailureCount++;
+};
 
-  return c.json({
+healthRoute.get('/', (context) => {
+  const currentMemoryUsage = process.memoryUsage();
+
+  return context.json({
     status: 'ok',
     timestamp: Date.now(),
     uptimeSeconds: process.uptime(),
     memory: {
-      rss: memoryUsage.rss,
-      heapTotal: memoryUsage.heapTotal,
-      heapUsed: memoryUsage.heapUsed,
-      external: memoryUsage.external,
+      rss: currentMemoryUsage.rss,
+      heapTotal: currentMemoryUsage.heapTotal,
+      heapUsed: currentMemoryUsage.heapUsed,
+      external: currentMemoryUsage.external,
     },
     metrics: {
       analysis: {
@@ -30,7 +34,7 @@ healthRoute.get('/', (c) => {
       },
     },
     aiModelState: {
-      provider: process.env.ACTIVE_LLM || 'gemini',
+      provider: process.env.ACTIVE_LLM ?? 'gemini',
       status: 'ready',
     },
   });

@@ -11,7 +11,10 @@ function generateProfileId(): string {
 }
 
 async function readProfileStorage(): Promise<ProfileStorageSlice> {
-  return chrome.storage.local.get(['skipProfiles', 'channelProfileMap']) as Promise<ProfileStorageSlice>;
+  return chrome.storage.local.get([
+    'skipProfiles',
+    'channelProfileMap',
+  ]) as Promise<ProfileStorageSlice>;
 }
 
 export async function getAllProfiles(): Promise<SkipProfile[]> {
@@ -57,7 +60,9 @@ export async function deleteProfile(profileId: string): Promise<void> {
   const { skipProfiles = [], channelProfileMap = {} } = await readProfileStorage();
   const remainingProfiles = skipProfiles.filter((profile) => profile.id !== profileId);
   const updatedChannelMap = Object.fromEntries(
-    Object.entries(channelProfileMap).filter(([, assignedProfileId]) => assignedProfileId !== profileId),
+    Object.entries(channelProfileMap).filter(
+      ([, assignedProfileId]) => assignedProfileId !== profileId,
+    ),
   );
   await chrome.storage.local.set({
     skipProfiles: remainingProfiles,

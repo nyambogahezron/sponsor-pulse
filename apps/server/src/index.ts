@@ -17,12 +17,14 @@ app.use(
     windowMs: 10 * 60 * 1000,
     limit: 60,
     standardHeaders: 'draft-6',
-    keyGenerator: (c) => {
-      return c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || '127.0.0.1';
+    keyGenerator: (context) => {
+      return (
+        context.req.header('x-forwarded-for') || context.req.header('x-real-ip') || '127.0.0.1'
+      );
     },
-    handler: (c) => {
-      logger.warn({ ip: c.req.header('x-forwarded-for') }, 'Rate limit exceeded');
-      return c.json({ error: 'Too Many Requests.', code: 'RATE_LIMIT_EXCEEDED' }, 429);
+    handler: (context) => {
+      logger.warn({ ip: context.req.header('x-forwarded-for') }, 'Rate limit exceeded');
+      return context.json({ error: 'Too Many Requests.', code: 'RATE_LIMIT_EXCEEDED' }, 429);
     },
   }),
 );
@@ -30,77 +32,82 @@ app.use(
 app.use(
   '*',
   cors({
-    origin: (origin) => {
-      if (!origin) return 'http://localhost:3000';
+    origin: (originUrl) => {
+      if (!originUrl) return 'http://localhost:3000';
 
-      const allowedExtension = process.env.EXTENSION_ID
+      const allowedExtensionOrigin = process.env.EXTENSION_ID
         ? `chrome-extension://${process.env.EXTENSION_ID}`
         : null;
 
-      if (allowedExtension && origin === allowedExtension) return origin;
+      if (allowedExtensionOrigin && originUrl === allowedExtensionOrigin) return originUrl;
 
-      // Fallback for local development when EXTENSION_ID is not strictly set
-      if (!allowedExtension && origin.startsWith('chrome-extension://')) {
-        return origin;
+      if (!allowedExtensionOrigin && originUrl.startsWith('chrome-extension://')) {
+        return originUrl;
       }
 
-      if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
-        // Allow local development
-        return origin;
+      if (originUrl.startsWith('http://localhost') || originUrl.startsWith('http://127.0.0.1')) {
+        return originUrl;
       }
 
       return null;
     },
     allowMethods: ['GET', 'POST', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
-    maxAge: 86400, // 24 h preflight cache
+    maxAge: 86400,
   }),
 );
 
-app.use('*', async (c, next) => {
-  const start = Date.now();
-  const method = c.req.method;
-  const path = c.req.path;
+app.use('*', async (context, nextHandler) => {
+  const requestStartTime = Date.now();
+  const requestMethod = context.req.method;
+  const requestPath = context.req.path;
 
-  let payload: unknown | undefined;
-  if (method !== 'GET' && method !== 'HEAD') {
+  let requestPayload: unknown | undefined;
+  if (requestMethod !== 'GET' && requestMethod !== 'HEAD') {
     try {
-      const clonedReq = c.req.raw.clone();
-      if (clonedReq.headers.get('content-type')?.includes('application/json')) {
-        payload = await clonedReq.json();
+      const clonedRequest = context.req.raw.clone();
+      if (clonedRequest.headers.get('content-type')?.includes('application/json')) {
+        requestPayload = await clonedRequest.json();
       }
-    } catch {}
+    } catch {
+      // Body might not be valid JSON, ignore extraction
+    }
   }
 
-  logger.info({ method, path, payload }, 'Incoming request');
+  logger.info(
+    { method: requestMethod, path: requestPath, payload: requestPayload },
+    'Incoming request',
+  );
 
-  await next();
+  await nextHandler();
 
-  const ms = Date.now() - start;
+  const requestLatencyMs = Date.now() - requestStartTime;
   logger.info(
     {
-      method,
-      path,
-      status: c.res.status,
-      latencyMs: ms,
+      method: requestMethod,
+      path: requestPath,
+      status: context.res.status,
+      latencyMs: requestLatencyMs,
     },
     'Request completed',
   );
 });
 
-app.get('/', (c) => c.json({ msg: 'SponsorPulse server is running.', timestamp: Date.now() }));
+app.get('/', (context) =>
+  context.json({ msg: 'SponsorPulse server is running.', timestamp: Date.now() }),
+);
 
 app.route('/health', healthRoute);
 app.route('/api/v1/analyze', analyzeRoute);
 
-app.notFound((c) => c.json({ error: 'Not found.', code: 'NOT_FOUND' }, 404));
+app.notFound((context) => context.json({ error: 'Not found.', code: 'NOT_FOUND' }, 404));
 
-app.onError((err, c) => {
-  logger.error({ err, path: c.req.path }, '[unhandled] Internal server error');
-  return c.json({ error: 'Internal server error.', code: 'INTERNAL_ERROR' }, 500);
+app.onError((error, context) => {
+  logger.error({ error, path: context.req.path }, '[unhandled] Internal server error');
+  return context.json({ error: 'Internal server error.', code: 'INTERNAL_ERROR' }, 500);
 });
 
-const port = Number(process.env.PORT ?? 3000);
-logger.info(`SponsorPulse server listening on http://localhost:${port}`);
+const serverPort = Number(process.env.PORT ?? 3000);
+logger.info(`SponsorPulse server listening on http://localhost:${serverPort}`);
 
-export default { port, fetch: app.fetch };
+export default { port: serverPort, fetch: app.fetch };

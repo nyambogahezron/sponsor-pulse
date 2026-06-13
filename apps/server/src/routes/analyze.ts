@@ -16,7 +16,7 @@ const ServerSponsorSegmentSchema = z.object({
 
 const analyze = new Hono();
 
-const analyzeSchema = z
+const analyzeRequestSchema = z
   .object({
     videoId: z.string().min(10).max(20),
     provider: z.enum(['gemini', 'openai', 'claude', 'deepseek']).optional(),
@@ -25,9 +25,9 @@ const analyzeSchema = z
 
 analyze.post(
   '/',
-  zValidator('json', analyzeSchema, (result, c) => {
-    if (!result.success) {
-      return c.json<ErrorResponse>(
+  zValidator('json', analyzeRequestSchema, (validationResult, context) => {
+    if (!validationResult.success) {
+      return context.json<ErrorResponse>(
         {
           error: 'Invalid or missing videoId. Expected standard YouTube video ID.',
           code: 'INVALID_VIDEO_ID',
@@ -36,16 +36,16 @@ analyze.post(
       );
     }
   }),
-  async (c) => {
-    const { videoId, provider: requestedProvider } = c.req.valid('json');
+  async (context) => {
+    const { videoId, provider: requestedAiProvider } = context.req.valid('json');
 
-    let transcript: string;
+    let videoTranscript: string;
     try {
-      transcript = await fetchTranscript(videoId);
-    } catch (err) {
-      if (err instanceof TranscriptNotAvailableError) {
+      videoTranscript = await fetchTranscript(videoId);
+    } catch (transcriptError) {
+      if (transcriptError instanceof TranscriptNotAvailableError) {
         console.warn('[/analyze] No transcript for video:', videoId);
-        return c.json<ErrorResponse>(
+        return context.json<ErrorResponse>(
           {
             error: 'This video has no transcript or captions available.',
             code: 'NO_TRANSCRIPT',
@@ -53,15 +53,15 @@ analyze.post(
           404,
         );
       }
-      console.error('[/analyze] Transcript fetch failed:', err);
-      return c.json<ErrorResponse>(
+      console.error('[/analyze] Transcript fetch failed:', transcriptError);
+      return context.json<ErrorResponse>(
         { error: 'Failed to fetch transcript.', code: 'TRANSCRIPT_FETCH_FAILED' },
         502,
       );
     }
 
-    if (!transcript.trim()) {
-      return c.json<AnalyzeResponse>({
+    if (!videoTranscript.trim()) {
+      return context.json<AnalyzeResponse>({
         videoId,
         segments: [],
         provider: 'none',
@@ -69,40 +69,43 @@ analyze.post(
       });
     }
 
-    let providerInstance: ReturnType<typeof AIProviderFactory.create>;
+    let aiProviderInstance: ReturnType<typeof AIProviderFactory.create>;
     try {
-      providerInstance = AIProviderFactory.create(requestedProvider);
-    } catch (err) {
-      console.error('[/analyze] Provider init failed:', err);
-      return c.json<ErrorResponse>(
+      aiProviderInstance = AIProviderFactory.create(requestedAiProvider);
+    } catch (providerInitError) {
+      console.error('[/analyze] Provider init failed:', providerInitError);
+      return context.json<ErrorResponse>(
         { error: 'AI provider configuration error.', code: 'PROVIDER_INIT_FAILED' },
         500,
       );
     }
 
-    let segments: AnalyzeResponse['segments'];
+    let detectedSegments: AnalyzeResponse['segments'];
     try {
-      const rawSegments = await providerInstance.analyzeTranscript(transcript);
+      const rawAiSegments = await aiProviderInstance.analyzeTranscript(videoTranscript);
 
-      segments = rawSegments.filter((seg) => {
-        const parsed = ServerSponsorSegmentSchema.safeParse(seg);
-        if (!parsed.success) {
-          console.warn('[/analyze] Stripped hallucinatory/invalid segment:', seg);
+      detectedSegments = rawAiSegments.filter((segmentCandidate) => {
+        const parsedValidation = ServerSponsorSegmentSchema.safeParse(segmentCandidate);
+        if (!parsedValidation.success) {
+          console.warn('[/analyze] Stripped hallucinatory/invalid segment:', segmentCandidate);
           return false;
         }
         return true;
       });
-    } catch (err) {
+    } catch (analysisError) {
       incrementFailureCount();
-      console.error('[/analyze] AI analysis failed:', err);
-      return c.json<ErrorResponse>({ error: 'AI analysis failed.', code: 'ANALYSIS_FAILED' }, 502);
+      console.error('[/analyze] AI analysis failed:', analysisError);
+      return context.json<ErrorResponse>(
+        { error: 'AI analysis failed.', code: 'ANALYSIS_FAILED' },
+        502,
+      );
     }
 
     incrementSuccessCount();
-    return c.json<AnalyzeResponse>({
+    return context.json<AnalyzeResponse>({
       videoId,
-      segments,
-      provider: providerInstance.name,
+      segments: detectedSegments,
+      provider: aiProviderInstance.name,
       analyzedAt: Date.now(),
     });
   },

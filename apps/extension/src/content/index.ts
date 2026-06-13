@@ -69,16 +69,16 @@ function playSkipAudioCue(): void {
     const audioContext = new AudioContext();
     const oscillatorNode = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
+
     oscillatorNode.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
+
     oscillatorNode.type = 'sine';
     oscillatorNode.frequency.value = 880;
-    
+
     gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08);
-    
+
     oscillatorNode.start(audioContext.currentTime);
     oscillatorNode.stop(audioContext.currentTime + 0.08);
     oscillatorNode.onended = () => {
@@ -118,7 +118,7 @@ function determineSegmentAction(
   if (!categoryPreference) return 'disabled';
   if (categoryPreference.autoSkip) return 'auto-skip';
   if (categoryPreference.buttonAlerts) return 'show';
-  
+
   return 'disabled';
 }
 
@@ -169,7 +169,7 @@ function awaitDOMElement<T extends HTMLElement>(
       domObserver.disconnect();
       resolveElement(null);
     }, timeoutMilliseconds);
-    
+
     domObserver.observe(document.documentElement, { childList: true, subtree: true });
   });
 }
@@ -198,7 +198,12 @@ async function injectTimelineBlocksIntoPlayer(): Promise<void> {
     videoElement.duration ||
     (await new Promise<number>((resolveDuration) => {
       if (videoElement.readyState > 0) resolveDuration(videoElement.duration);
-      else videoElement.addEventListener('loadedmetadata', () => resolveDuration(videoElement.duration), { once: true });
+      else
+        videoElement.addEventListener(
+          'loadedmetadata',
+          () => resolveDuration(videoElement.duration),
+          { once: true },
+        );
     }));
 
   if (!videoDuration || videoDuration <= 0) return;
@@ -207,7 +212,7 @@ async function injectTimelineBlocksIntoPlayer(): Promise<void> {
     const timelineBlock = document.createElement('div');
     timelineBlock.className = 'sp-timeline-block';
     timelineBlock.setAttribute('data-sp-category', segment.category);
-    
+
     if (segment.actionType === 'mute') {
       timelineBlock.setAttribute('data-sp-action', 'mute');
     }
@@ -254,7 +259,11 @@ function removeNotificationToast(): void {
   }
 }
 
-function renderNotificationToast(segment: SponsorSegment, segmentIndex: number, videoElement: HTMLVideoElement): void {
+function renderNotificationToast(
+  segment: SponsorSegment,
+  segmentIndex: number,
+  videoElement: HTMLVideoElement,
+): void {
   if (currentlyDisplayedToastSegmentIndex === segmentIndex) return;
 
   let toastElement = document.getElementById(TOAST_CONTAINER_ID);
@@ -271,7 +280,7 @@ function renderNotificationToast(segment: SponsorSegment, segmentIndex: number, 
 
   currentlyDisplayedToastSegmentIndex = segmentIndex;
   toastElement.className = '';
-  
+
   if (activeNoticeVisibilityMode === 'mini') {
     toastElement.classList.add('sp-toast-mini');
   } else if (activeNoticeVisibilityMode === 'faded') {
@@ -325,7 +334,7 @@ async function saveDismissedSegmentToStorage(segment: SponsorSegment): Promise<v
   const dismissedMap = storageData.dismissedSegments ?? {};
   const existingVideoDismissals = dismissedMap[activeVideoId] ?? [];
   const segmentFingerprint = generateSegmentFingerprint(segment);
-  
+
   if (!existingVideoDismissals.includes(segmentFingerprint)) {
     dismissedMap[activeVideoId] = [...existingVideoDismissals, segmentFingerprint];
     await chrome.storage.local.set({ dismissedSegments: dismissedMap });
@@ -346,7 +355,11 @@ function unmuteVideoPlayback(videoElement: HTMLVideoElement): void {
   }
 }
 
-function executeAutoSkip(videoElement: HTMLVideoElement, segment: SponsorSegment, segmentIndex: number): void {
+function executeAutoSkip(
+  videoElement: HTMLVideoElement,
+  segment: SponsorSegment,
+  segmentIndex: number,
+): void {
   videoElement.currentTime = segment.endTime;
   manuallySkippedSegmentIndices.add(segmentIndex);
   removeNotificationToast();
@@ -364,10 +377,11 @@ function createTimeUpdateHandler(videoElement: HTMLVideoElement): () => void {
     for (let segmentIndex = 0; segmentIndex < activeVideoSegments.length; segmentIndex++) {
       const segment = activeVideoSegments[segmentIndex];
       const actionToTake = determineSegmentAction(segment, segmentIndex);
-      
+
       if (actionToTake === 'disabled') continue;
 
-      const isInsideSegmentBoundaries = currentPlaybackTime >= segment.startTime && currentPlaybackTime < segment.endTime;
+      const isInsideSegmentBoundaries =
+        currentPlaybackTime >= segment.startTime && currentPlaybackTime < segment.endTime;
 
       if (isInsideSegmentBoundaries) {
         if (actionToTake === 'auto-skip') {
@@ -403,7 +417,11 @@ function createTimeUpdateHandler(videoElement: HTMLVideoElement): () => void {
 
     if (highestPriorityToastSegment) {
       if (isNotificationEnabled) {
-        renderNotificationToast(highestPriorityToastSegment.segment, highestPriorityToastSegment.index, videoElement);
+        renderNotificationToast(
+          highestPriorityToastSegment.segment,
+          highestPriorityToastSegment.index,
+          videoElement,
+        );
       }
     } else {
       removeNotificationToast();
@@ -432,11 +450,11 @@ function initializeKeyboardShortcuts(): void {
 
   activeKeybindListener = (keyboardEvent: KeyboardEvent) => {
     const targetElement = keyboardEvent.target as HTMLElement;
-    const isUserTypingInInput = 
-      targetElement.tagName === 'INPUT' || 
-      targetElement.tagName === 'TEXTAREA' || 
+    const isUserTypingInInput =
+      targetElement.tagName === 'INPUT' ||
+      targetElement.tagName === 'TEXTAREA' ||
       targetElement.isContentEditable;
-      
+
     if (isUserTypingInInput) return;
 
     const videoElement = document.querySelector('video');
@@ -469,7 +487,9 @@ function initializeKeyboardShortcuts(): void {
     }
 
     if (pressedKey === activeKeybinds.nextSegment) {
-      const nextSegment = activeVideoSegments.find((segment) => segment.startTime > currentPlaybackTime);
+      const nextSegment = activeVideoSegments.find(
+        (segment) => segment.startTime > currentPlaybackTime,
+      );
       if (nextSegment) {
         videoElement.currentTime = nextSegment.startTime;
       }
@@ -477,7 +497,9 @@ function initializeKeyboardShortcuts(): void {
     }
 
     if (pressedKey === activeKeybinds.prevSegment) {
-      const previousSegment = [...activeVideoSegments].reverse().find((segment) => segment.startTime < currentPlaybackTime - 2);
+      const previousSegment = [...activeVideoSegments]
+        .reverse()
+        .find((segment) => segment.startTime < currentPlaybackTime - 2);
       if (previousSegment) {
         videoElement.currentTime = previousSegment.startTime;
       }
@@ -524,12 +546,18 @@ async function handleYouTubeNavigationEvent(): Promise<void> {
   ])) as Partial<LocalStorageSchema>;
 
   activeUserPreferences = userStorageData.userPreferences ?? DEFAULT_USER_PREFERENCES;
-  isNotificationEnabled = userStorageData.showNotification ?? DEFAULT_GLOBAL_SETTINGS.showNotification;
-  activeNoticeVisibilityMode = userStorageData.noticeVisibilityMode ?? DEFAULT_GLOBAL_SETTINGS.noticeVisibilityMode;
-  isUpcomingHintEnabled = userStorageData.showUpcomingHint ?? DEFAULT_GLOBAL_SETTINGS.showUpcomingHint;
-  upcomingHintDurationSeconds = userStorageData.upcomingHintSeconds ?? DEFAULT_GLOBAL_SETTINGS.upcomingHintSeconds;
-  isAudioNotificationEnabled = userStorageData.audioNotificationOnSkip ?? DEFAULT_GLOBAL_SETTINGS.audioNotificationOnSkip;
-  globalMinSegmentDuration = userStorageData.minSegmentDuration ?? DEFAULT_GLOBAL_SETTINGS.minSegmentDuration;
+  isNotificationEnabled =
+    userStorageData.showNotification ?? DEFAULT_GLOBAL_SETTINGS.showNotification;
+  activeNoticeVisibilityMode =
+    userStorageData.noticeVisibilityMode ?? DEFAULT_GLOBAL_SETTINGS.noticeVisibilityMode;
+  isUpcomingHintEnabled =
+    userStorageData.showUpcomingHint ?? DEFAULT_GLOBAL_SETTINGS.showUpcomingHint;
+  upcomingHintDurationSeconds =
+    userStorageData.upcomingHintSeconds ?? DEFAULT_GLOBAL_SETTINGS.upcomingHintSeconds;
+  isAudioNotificationEnabled =
+    userStorageData.audioNotificationOnSkip ?? DEFAULT_GLOBAL_SETTINGS.audioNotificationOnSkip;
+  globalMinSegmentDuration =
+    userStorageData.minSegmentDuration ?? DEFAULT_GLOBAL_SETTINGS.minSegmentDuration;
   activeKeybinds = userStorageData.keybinds ?? DEFAULT_KEYBINDS;
   activeSkipRules = userStorageData.skipRules ?? [];
 
@@ -543,7 +571,10 @@ async function handleYouTubeNavigationEvent(): Promise<void> {
     if (channelProfile) {
       activeUserPreferences = channelProfile.categoryPreferences;
       globalMinSegmentDuration = channelProfile.minSegmentDuration;
-      console.log(LOG_PREFIX, `Applied profile "${channelProfile.name}" for channel ${currentChannelId}`);
+      console.log(
+        LOG_PREFIX,
+        `Applied profile "${channelProfile.name}" for channel ${currentChannelId}`,
+      );
     }
   }
 
@@ -551,10 +582,14 @@ async function handleYouTubeNavigationEvent(): Promise<void> {
   let fetchedSegments = await fetchVideoSegmentsFromServer(extractedVideoId);
 
   if (globalMinSegmentDuration > 0) {
-    fetchedSegments = fetchedSegments.filter((segment) => (segment.endTime - segment.startTime) >= globalMinSegmentDuration);
+    fetchedSegments = fetchedSegments.filter(
+      (segment) => segment.endTime - segment.startTime >= globalMinSegmentDuration,
+    );
   }
 
-  fetchedSegments = fetchedSegments.filter((segment) => !dismissedSegmentFingerprints.has(generateSegmentFingerprint(segment)));
+  fetchedSegments = fetchedSegments.filter(
+    (segment) => !dismissedSegmentFingerprints.has(generateSegmentFingerprint(segment)),
+  );
   activeVideoSegments = fetchedSegments;
   cacheSegmentsForVideo(extractedVideoId, fetchedSegments);
 

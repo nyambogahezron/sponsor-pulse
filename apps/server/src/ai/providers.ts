@@ -10,29 +10,41 @@ interface ProviderConfig {
   apiKeyEnv: string;
   modelEnv: string;
   defaultModel: string;
-  buildUrl: (model: string, apiKey: string) => string;
+  buildUrl: (modelId: string, apiKey: string) => string;
   buildHeaders: (apiKey: string) => Record<string, string>;
-  buildBody: (model: string, transcript: string) => unknown;
-  extractText: (data: unknown) => string;
+  buildBody: (modelId: string, transcript: string) => unknown;
+  extractText: (apiResponsePayload: unknown) => string;
 }
 
-const CONFIGS: Record<ProviderKey, ProviderConfig> = {
+interface GeminiResponse {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+}
+
+interface OpenAiResponse {
+  choices?: Array<{ message?: { content?: string } }>;
+}
+
+interface ClaudeResponse {
+  content?: Array<{ type?: string; text?: string }>;
+}
+
+const PROVIDER_CONFIGURATIONS: Record<ProviderKey, ProviderConfig> = {
   gemini: {
     name: 'gemini',
     apiKeyEnv: 'GEMINI_API_KEY',
     modelEnv: 'GEMINI_MODEL',
     defaultModel: 'gemini-3.5-flash',
-    buildUrl: (model, key) =>
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+    buildUrl: (modelId, apiKey) =>
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
     buildHeaders: () => ({ 'Content-Type': 'application/json' }),
-    buildBody: (_model, transcript) => ({
+    buildBody: (_modelId, transcript) => ({
       system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{ role: 'user', parts: [{ text: transcript }] }],
       generationConfig: { temperature: 0.0, responseMimeType: 'application/json' },
     }),
-    extractText: (data) => {
-      const d = data as { candidates: Array<{ content: { parts: Array<{ text: string }> } }> };
-      return d.candidates[0]?.content?.parts[0]?.text ?? '[]';
+    extractText: (apiResponsePayload: unknown): string => {
+      const typedPayload = apiResponsePayload as GeminiResponse;
+      return typedPayload.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]';
     },
   },
 
@@ -42,9 +54,12 @@ const CONFIGS: Record<ProviderKey, ProviderConfig> = {
     modelEnv: 'OPENAI_MODEL',
     defaultModel: 'gpt-4o-mini',
     buildUrl: () => 'https://api.openai.com/v1/chat/completions',
-    buildHeaders: (key) => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }),
-    buildBody: (model, transcript) => ({
-      model,
+    buildHeaders: (apiKey) => ({
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    }),
+    buildBody: (modelId, transcript) => ({
+      model: modelId,
       temperature: 0,
       response_format: { type: 'json_object' },
       messages: [
@@ -52,9 +67,9 @@ const CONFIGS: Record<ProviderKey, ProviderConfig> = {
         { role: 'user', content: transcript },
       ],
     }),
-    extractText: (data) => {
-      const d = data as { choices: Array<{ message: { content: string } }> };
-      return d.choices[0]?.message?.content ?? '[]';
+    extractText: (apiResponsePayload: unknown): string => {
+      const typedPayload = apiResponsePayload as OpenAiResponse;
+      return typedPayload.choices?.[0]?.message?.content ?? '[]';
     },
   },
 
@@ -64,21 +79,23 @@ const CONFIGS: Record<ProviderKey, ProviderConfig> = {
     modelEnv: 'CLAUDE_MODEL',
     defaultModel: 'claude-3-5-haiku-20241022',
     buildUrl: () => 'https://api.anthropic.com/v1/messages',
-    buildHeaders: (key) => ({
+    buildHeaders: (apiKey) => ({
       'Content-Type': 'application/json',
-      'x-api-key': key,
+      'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     }),
-    buildBody: (model, transcript) => ({
-      model,
+    buildBody: (modelId, transcript) => ({
+      model: modelId,
       max_tokens: 1024,
       temperature: 0,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: transcript }],
     }),
-    extractText: (data) => {
-      const d = data as { content: Array<{ type: string; text: string }> };
-      return d.content.find((b) => b.type === 'text')?.text ?? '[]';
+    extractText: (apiResponsePayload: unknown): string => {
+      const typedPayload = apiResponsePayload as ClaudeResponse;
+      return (
+        typedPayload.content?.find((messageBlock) => messageBlock.type === 'text')?.text ?? '[]'
+      );
     },
   },
 
@@ -88,9 +105,12 @@ const CONFIGS: Record<ProviderKey, ProviderConfig> = {
     modelEnv: 'DEEPSEEK_MODEL',
     defaultModel: 'deepseek-chat',
     buildUrl: () => 'https://api.deepseek.com/v1/chat/completions',
-    buildHeaders: (key) => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }),
-    buildBody: (model, transcript) => ({
-      model,
+    buildHeaders: (apiKey) => ({
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    }),
+    buildBody: (modelId, transcript) => ({
+      model: modelId,
       temperature: 0,
       response_format: { type: 'json_object' },
       messages: [
@@ -98,9 +118,9 @@ const CONFIGS: Record<ProviderKey, ProviderConfig> = {
         { role: 'user', content: transcript },
       ],
     }),
-    extractText: (data) => {
-      const d = data as { choices: Array<{ message: { content: string } }> };
-      return d.choices[0]?.message?.content ?? '[]';
+    extractText: (apiResponsePayload: unknown): string => {
+      const typedPayload = apiResponsePayload as OpenAiResponse;
+      return typedPayload.choices?.[0]?.message?.content ?? '[]';
     },
   },
 };
@@ -108,57 +128,72 @@ const CONFIGS: Record<ProviderKey, ProviderConfig> = {
 class LLMProvider implements IAIProvider {
   readonly name: string;
   private readonly apiKey: string;
-  private readonly model: string;
-  private readonly config: ProviderConfig;
+  private readonly modelId: string;
+  private readonly configuration: ProviderConfig;
 
-  constructor(key: ProviderKey) {
-    this.config = CONFIGS[key];
-    const apiKey = process.env[this.config.apiKeyEnv];
-    if (!apiKey) throw new Error(`${this.config.apiKeyEnv} is not set.`);
-    this.apiKey = apiKey;
-    this.model = process.env[this.config.modelEnv] ?? this.config.defaultModel;
-    this.name = this.config.name;
-  }
+  constructor(providerId: ProviderKey) {
+    this.configuration = PROVIDER_CONFIGURATIONS[providerId];
 
-  async analyzeTranscript(transcript: string): Promise<SponsorSegment[]> {
-    const url = this.config.buildUrl(this.model, this.apiKey);
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: this.config.buildHeaders(this.apiKey),
-      body: JSON.stringify(this.config.buildBody(this.model, transcript)),
-    });
-
-    if (!res.ok) {
-      throw new Error(`[${this.name}] API error ${res.status}: ${await res.text()}`);
+    const environmentApiKey = process.env[this.configuration.apiKeyEnv];
+    if (!environmentApiKey) {
+      throw new Error(`${this.configuration.apiKeyEnv} is not set.`);
     }
 
-    return parseSegments(this.config.extractText(await res.json()));
+    this.apiKey = environmentApiKey;
+    this.modelId = process.env[this.configuration.modelEnv] ?? this.configuration.defaultModel;
+    this.name = this.configuration.name;
   }
-}
 
-let aiProviderInstances: Record<string, IAIProvider> = {};
+  async analyzeTranscript(transcriptText: string): Promise<SponsorSegment[]> {
+    const endpointUrl = this.configuration.buildUrl(this.modelId, this.apiKey);
 
-export const AIProviderFactory = {
-  create(requestedProvider?: string): IAIProvider {
-    const key = (
-      requestedProvider ??
-      process.env.ACTIVE_LLM ??
-      'gemini'
-    ).toLowerCase() as ProviderKey;
-    if (!CONFIGS[key]) {
+    const apiResponse = await fetch(endpointUrl, {
+      method: 'POST',
+      headers: this.configuration.buildHeaders(this.apiKey),
+      body: JSON.stringify(this.configuration.buildBody(this.modelId, transcriptText)),
+    });
+
+    if (!apiResponse.ok) {
       throw new Error(
-        `Unknown provider "${key}". Valid values: ${Object.keys(CONFIGS).join(', ')}`,
+        `[${this.name}] API error ${apiResponse.status}: ${await apiResponse.text()}`,
       );
     }
 
-    if (aiProviderInstances[key]) return aiProviderInstances[key];
+    const responseJson = await apiResponse.json();
+    const extractedText = this.configuration.extractText(responseJson);
 
-    aiProviderInstances[key] = new LLMProvider(key);
-    console.info(`[AIProviderFactory] Initialized provider: ${aiProviderInstances[key].name}`);
-    return aiProviderInstances[key];
+    return parseSegments(extractedText);
+  }
+}
+
+let activeProviderInstances: Record<string, IAIProvider> = {};
+
+export const AIProviderFactory = {
+  create(requestedProviderId?: string): IAIProvider {
+    const rawKey = (requestedProviderId ?? process.env.ACTIVE_LLM ?? 'gemini').toLowerCase();
+
+    if (!(rawKey in PROVIDER_CONFIGURATIONS)) {
+      const validProvidersList = Object.keys(PROVIDER_CONFIGURATIONS).join(', ');
+      throw new Error(`Unknown provider "${rawKey}". Valid values: ${validProvidersList}`);
+    }
+
+    const activeProviderKey = rawKey as ProviderKey;
+
+    const existingProvider = activeProviderInstances[activeProviderKey];
+    if (existingProvider) {
+      return existingProvider;
+    }
+
+    const newProvider = new LLMProvider(activeProviderKey);
+    activeProviderInstances[activeProviderKey] = newProvider;
+    console.info(
+      `[AIProviderFactory] Initialized provider: ${newProvider.name}`,
+    );
+
+    return newProvider;
   },
 
   reset(): void {
-    aiProviderInstances = {};
+    activeProviderInstances = {};
   },
 };
