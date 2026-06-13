@@ -23,7 +23,7 @@
     "@types/chrome": "^0.1.42",
     "@types/node": "^25.9.1",
     "husky": "^9.1.7",
-    "turbo": "^2.9.16",
+    "turbo": "^2.9.18",
     "typescript": "~6.0.2",
     "vite": "^8.0.12"
   }
