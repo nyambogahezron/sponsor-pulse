@@ -1,12 +1,13 @@
 import type { SkipRule } from '../types/storage';
 import type { SponsorSegment } from '../types/types';
 
-type AttributeValue = string | number;
+type SegmentAttributeValue = string | number;
+type SegmentAction = SkipRule['action'] | null;
 
-function getAttributeValue(
+function resolveAttributeValue(
   segment: SponsorSegment,
   attribute: SkipRule['attribute'],
-): AttributeValue {
+): SegmentAttributeValue {
   switch (attribute) {
     case 'category':
       return segment.category;
@@ -19,37 +20,34 @@ function getAttributeValue(
   }
 }
 
-function evaluateOperator(
-  actual: AttributeValue,
+function attributeSatisfiesOperator(
+  actualValue: SegmentAttributeValue,
   operator: SkipRule['operator'],
-  expected: SkipRule['value'],
+  expectedValue: SkipRule['value'],
 ): boolean {
   switch (operator) {
     case '==':
-      return actual === expected;
+      return actualValue === expectedValue;
     case '!=':
-      return actual !== expected;
+      return actualValue !== expectedValue;
     case '>':
-      return typeof actual === 'number' && actual > Number(expected);
+      return typeof actualValue === 'number' && actualValue > Number(expectedValue);
     case '<':
-      return typeof actual === 'number' && actual < Number(expected);
+      return typeof actualValue === 'number' && actualValue < Number(expectedValue);
     case '>=':
-      return typeof actual === 'number' && actual >= Number(expected);
+      return typeof actualValue === 'number' && actualValue >= Number(expectedValue);
     case '<=':
-      return typeof actual === 'number' && actual <= Number(expected);
+      return typeof actualValue === 'number' && actualValue <= Number(expectedValue);
     case 'contains':
-      return String(actual).toLowerCase().includes(String(expected).toLowerCase());
+      return String(actualValue).toLowerCase().includes(String(expectedValue).toLowerCase());
   }
 }
 
-export function evaluateRules(
-  segment: SponsorSegment,
-  rules: SkipRule[],
-): SkipRule['action'] | null {
+export function evaluateRules(segment: SponsorSegment, rules: SkipRule[]): SegmentAction {
   for (const rule of rules) {
     if (!rule.enabled) continue;
-    const actual = getAttributeValue(segment, rule.attribute);
-    if (evaluateOperator(actual, rule.operator, rule.value)) return rule.action;
+    const actualValue = resolveAttributeValue(segment, rule.attribute);
+    if (attributeSatisfiesOperator(actualValue, rule.operator, rule.value)) return rule.action;
   }
   return null;
 }
@@ -81,13 +79,16 @@ export async function loadRules(): Promise<SkipRule[]> {
 }
 
 export function describeRule(rule: SkipRule): string {
-  const val = typeof rule.value === 'number' ? `${rule.value}s` : `"${rule.value}"`;
-  return `if ${rule.attribute} ${rule.operator} ${val} → ${rule.action.replace('-', ' ')}`;
+  const formattedValue =
+    typeof rule.value === 'number' ? `${rule.value}s` : `"${rule.value}"`;
+  return `if ${rule.attribute} ${rule.operator} ${formattedValue} → ${rule.action.replace('-', ' ')}`;
 }
 
 export const NUMERIC_OPERATORS: SkipRule['operator'][] = ['>', '<', '>=', '<=', '==', '!='];
 export const STRING_OPERATORS: SkipRule['operator'][] = ['==', '!=', 'contains'];
 
-export function getOperatorsForAttribute(attr: SkipRule['attribute']): SkipRule['operator'][] {
-  return attr === 'category' ? STRING_OPERATORS : NUMERIC_OPERATORS;
+export function getOperatorsForAttribute(
+  attribute: SkipRule['attribute'],
+): SkipRule['operator'][] {
+  return attribute === 'category' ? STRING_OPERATORS : NUMERIC_OPERATORS;
 }

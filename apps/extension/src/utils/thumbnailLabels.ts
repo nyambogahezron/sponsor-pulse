@@ -1,9 +1,11 @@
 import type { SegmentCategory } from '../types/shared';
 import type { SponsorSegment } from '../types/types';
 
+const VIDEO_ID_FROM_URL_PATTERN = /[?&]v=([a-zA-Z0-9_-]{11})/;
+
 const videoLabelCache = new Map<string, SegmentCategory>();
 
-const CATEGORY_PRIORITY: SegmentCategory[] = [
+const CATEGORY_DISPLAY_PRIORITY: SegmentCategory[] = [
   'sponsor',
   'course_promo',
   'product_sale',
@@ -14,7 +16,7 @@ const CATEGORY_PRIORITY: SegmentCategory[] = [
   'intro_external',
 ];
 
-const CATEGORY_SHORT_LABELS: Record<SegmentCategory, string> = {
+const CATEGORY_BADGE_LABELS: Record<SegmentCategory, string> = {
   sponsor: 'Sponsor',
   shoutout: 'Shoutout',
   course_promo: 'Course',
@@ -25,58 +27,7 @@ const CATEGORY_SHORT_LABELS: Record<SegmentCategory, string> = {
   intro_external: 'Intro',
 };
 
-export function cacheSegmentsForVideo(videoId: string, segments: SponsorSegment[]): void {
-  if (!segments.length) return;
-  const presentCategories = new Set(segments.map((s) => s.category));
-  const dominant = CATEGORY_PRIORITY.find((c) => presentCategories.has(c));
-  if (dominant) videoLabelCache.set(videoId, dominant);
-}
-
-export function clearLabelCache(): void {
-  videoLabelCache.clear();
-}
-
-const LABEL_CLASS = 'sp-thumb-label';
-
-function extractVideoIdFromCard(card: Element): string | null {
-  const link = card.querySelector<HTMLAnchorElement>(
-    'a#thumbnail, a.yt-lockup-metadata-view-model__title-link, a[href*="watch?v="]',
-  );
-  if (!link?.href) return null;
-  const m = link.href.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-  return m ? m[1] : null;
-}
-
-function getOrCreateLabel(card: Element): HTMLElement {
-  const existing = card.querySelector<HTMLElement>(`.${LABEL_CLASS}`);
-  if (existing) return existing;
-
-  const label = document.createElement('div');
-  label.className = LABEL_CLASS;
-
-  const thumbContainer = card.querySelector<HTMLElement>(
-    '#thumbnail, .yt-lockup-view-model__content-image',
-  );
-  if (thumbContainer) {
-    thumbContainer.style.position = 'relative';
-    thumbContainer.appendChild(label);
-  }
-
-  return label;
-}
-
-function applyLabelToCard(card: Element): void {
-  const videoId = extractVideoIdFromCard(card);
-  if (!videoId) return;
-  const category = videoLabelCache.get(videoId);
-  if (!category) return;
-  const label = getOrCreateLabel(card);
-  label.setAttribute('data-sp-category', category);
-  label.textContent = CATEGORY_SHORT_LABELS[category] ?? category;
-  label.style.display = 'block';
-}
-
-let observer: MutationObserver | null = null;
+const THUMBNAIL_LABEL_CLASS = 'sp-thumb-label';
 
 const VIDEO_CARD_SELECTORS = [
   'ytd-rich-item-renderer',
@@ -85,28 +36,81 @@ const VIDEO_CARD_SELECTORS = [
   'ytd-grid-video-renderer',
 ].join(',');
 
-function labelAllVisibleCards(): void {
-  document.querySelectorAll(VIDEO_CARD_SELECTORS).forEach(applyLabelToCard);
+let thumbnailObserver: MutationObserver | null = null;
+
+export function cacheSegmentsForVideo(videoId: string, segments: SponsorSegment[]): void {
+  if (!segments.length) return;
+  const presentCategories = new Set(segments.map((segment) => segment.category));
+  const dominantCategory = CATEGORY_DISPLAY_PRIORITY.find((category) =>
+    presentCategories.has(category),
+  );
+  if (dominantCategory) videoLabelCache.set(videoId, dominantCategory);
+}
+
+export function clearLabelCache(): void {
+  videoLabelCache.clear();
+}
+
+function extractVideoIdFromCardLink(card: Element): string | null {
+  const thumbnailLink = card.querySelector<HTMLAnchorElement>(
+    'a#thumbnail, a.yt-lockup-metadata-view-model__title-link, a[href*="watch?v="]',
+  );
+  if (!thumbnailLink?.href) return null;
+  const match = thumbnailLink.href.match(VIDEO_ID_FROM_URL_PATTERN);
+  return match ? match[1] : null;
+}
+
+function getOrCreateThumbnailBadge(card: Element): HTMLElement {
+  const existingBadge = card.querySelector<HTMLElement>(`.${THUMBNAIL_LABEL_CLASS}`);
+  if (existingBadge) return existingBadge;
+
+  const badge = document.createElement('div');
+  badge.className = THUMBNAIL_LABEL_CLASS;
+
+  const thumbnailContainer = card.querySelector<HTMLElement>(
+    '#thumbnail, .yt-lockup-view-model__content-image',
+  );
+  if (thumbnailContainer) {
+    thumbnailContainer.style.position = 'relative';
+    thumbnailContainer.appendChild(badge);
+  }
+
+  return badge;
+}
+
+function applyBadgeToVideoCard(card: Element): void {
+  const videoId = extractVideoIdFromCardLink(card);
+  if (!videoId) return;
+  const cachedCategory = videoLabelCache.get(videoId);
+  if (!cachedCategory) return;
+  const badge = getOrCreateThumbnailBadge(card);
+  badge.setAttribute('data-sp-category', cachedCategory);
+  badge.textContent = CATEGORY_BADGE_LABELS[cachedCategory] ?? cachedCategory;
+  badge.style.display = 'block';
+}
+
+function applyBadgesToAllVisibleCards(): void {
+  document.querySelectorAll(VIDEO_CARD_SELECTORS).forEach(applyBadgeToVideoCard);
 }
 
 export function setupThumbnailObserver(): void {
-  if (observer) return;
-  labelAllVisibleCards();
+  if (thumbnailObserver) return;
+  applyBadgesToAllVisibleCards();
 
-  observer = new MutationObserver((mutations) => {
+  thumbnailObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
-      for (const node of mutation.addedNodes) {
-        if (!(node instanceof HTMLElement)) continue;
-        if (node.matches(VIDEO_CARD_SELECTORS)) applyLabelToCard(node);
-        node.querySelectorAll(VIDEO_CARD_SELECTORS).forEach(applyLabelToCard);
+      for (const addedNode of mutation.addedNodes) {
+        if (!(addedNode instanceof HTMLElement)) continue;
+        if (addedNode.matches(VIDEO_CARD_SELECTORS)) applyBadgeToVideoCard(addedNode);
+        addedNode.querySelectorAll(VIDEO_CARD_SELECTORS).forEach(applyBadgeToVideoCard);
       }
     }
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  thumbnailObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 export function teardownThumbnailObserver(): void {
-  observer?.disconnect();
-  observer = null;
+  thumbnailObserver?.disconnect();
+  thumbnailObserver = null;
 }

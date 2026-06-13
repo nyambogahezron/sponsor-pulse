@@ -19,11 +19,11 @@ import {
 } from '../utils/thumbnailLabels';
 
 const LOG_PREFIX = '[SponsorPulse]';
-const STYLE_ID = 'sp-styles';
-const TOAST_ID = 'sp-toast';
-const UPCOMING_BAR_ID = 'sp-upcoming-bar';
+const INJECTED_STYLE_ID = 'sp-styles';
+const TOAST_CONTAINER_ID = 'sp-toast';
+const UPCOMING_HINT_BAR_ID = 'sp-upcoming-bar';
 
-const PULSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" aria-hidden="true">
+const PULSE_ANIMATION_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" aria-hidden="true">
   <rect x="1"  y="7"  width="2" height="4"  rx="1" opacity="0.5"/>
   <rect x="4"  y="4"  width="2" height="10" rx="1" opacity="0.75"/>
   <rect x="7"  y="1"  width="2" height="16" rx="1"/>
@@ -31,429 +31,465 @@ const PULSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" a
   <rect x="13" y="7"  width="2" height="4"  rx="1" opacity="0.5"/>
 </svg>`;
 
-let currentVideoId: string | null = null;
-let currentVideoSegments: SponsorSegment[] = [];
-let activeToastSegmentIndex: number | null = null;
-let timeUpdateHandler: ((e: Event) => void) | null = null;
-const skippedSegments: Set<number> = new Set();
+let activeVideoId: string | null = null;
+let activeVideoSegments: SponsorSegment[] = [];
+let currentlyDisplayedToastSegmentIndex: number | null = null;
+let playerTimeUpdateListener: ((event: Event) => void) | null = null;
+const manuallySkippedSegmentIndices: Set<number> = new Set();
 
-let userPrefs: UserPreferences = { ...DEFAULT_USER_PREFERENCES };
-let showNotification = DEFAULT_GLOBAL_SETTINGS.showNotification;
-let noticeVisibilityMode = DEFAULT_GLOBAL_SETTINGS.noticeVisibilityMode;
-let showUpcomingHint = DEFAULT_GLOBAL_SETTINGS.showUpcomingHint;
-let upcomingHintSeconds = DEFAULT_GLOBAL_SETTINGS.upcomingHintSeconds;
-let audioNotificationOnSkip = DEFAULT_GLOBAL_SETTINGS.audioNotificationOnSkip;
-let minSegmentDuration = DEFAULT_GLOBAL_SETTINGS.minSegmentDuration;
-let keybinds: KeybindMap = { ...DEFAULT_KEYBINDS };
-let skipRules: SkipRule[] = [];
-let isMuted = false;
+let activeUserPreferences: UserPreferences = { ...DEFAULT_USER_PREFERENCES };
+let isNotificationEnabled = DEFAULT_GLOBAL_SETTINGS.showNotification;
+let activeNoticeVisibilityMode = DEFAULT_GLOBAL_SETTINGS.noticeVisibilityMode;
+let isUpcomingHintEnabled = DEFAULT_GLOBAL_SETTINGS.showUpcomingHint;
+let upcomingHintDurationSeconds = DEFAULT_GLOBAL_SETTINGS.upcomingHintSeconds;
+let isAudioNotificationEnabled = DEFAULT_GLOBAL_SETTINGS.audioNotificationOnSkip;
+let globalMinSegmentDuration = DEFAULT_GLOBAL_SETTINGS.minSegmentDuration;
+let activeKeybinds: KeybindMap = { ...DEFAULT_KEYBINDS };
+let activeSkipRules: SkipRule[] = [];
+let isVideoCurrentlyMutedByExtension = false;
 
-function isWatchPage(): boolean {
+function isCurrentPageWatchPage(): boolean {
   return window.location.pathname === '/watch';
 }
 
-function getVideoId(): string | null {
+function extractVideoIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get('v');
 }
 
-function ensureStylesInjected(): void {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = STYLES;
-  document.head.appendChild(style);
+function injectExtensionStyles(): void {
+  if (document.getElementById(INJECTED_STYLE_ID)) return;
+  const styleElement = document.createElement('style');
+  styleElement.id = INJECTED_STYLE_ID;
+  styleElement.textContent = STYLES;
+  document.head.appendChild(styleElement);
 }
 
-function playSkipCue(): void {
+function playSkipAudioCue(): void {
   try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.2, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.08);
-    osc.onended = () => {
-      void ctx.close();
+    const audioContext = new AudioContext();
+    const oscillatorNode = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillatorNode.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillatorNode.type = 'sine';
+    oscillatorNode.frequency.value = 880;
+    
+    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.08);
+    
+    oscillatorNode.start(audioContext.currentTime);
+    oscillatorNode.stop(audioContext.currentTime + 0.08);
+    oscillatorNode.onended = () => {
+      void audioContext.close();
     };
   } catch {
-    // no-op: AudioContext unavailable
+    // AudioContext may be restricted by browser autoplay policies
   }
 }
 
-function mapServerSegment(seg: ServerSponsorSegment): SponsorSegment {
+function parseServerSegmentToLocal(serverSegment: ServerSponsorSegment): SponsorSegment {
   return {
-    startTime: seg.start,
-    endTime: seg.end,
-    category: seg.category,
+    startTime: serverSegment.start,
+    endTime: serverSegment.end,
+    category: serverSegment.category,
     confidence: 1.0,
     source: 'ai-server',
     actionType: 'skip',
   };
 }
 
-function resolveSegmentAction(
+type ResolvedSegmentAction = 'auto-skip' | 'mute' | 'show' | 'disabled';
+
+function determineSegmentAction(
   segment: SponsorSegment,
-  index: number,
-): 'auto-skip' | 'mute' | 'show' | 'disabled' {
-  if (skippedSegments.has(index)) return 'disabled';
+  segmentIndex: number,
+): ResolvedSegmentAction {
+  if (manuallySkippedSegmentIndices.has(segmentIndex)) return 'disabled';
 
-  const ruleAction = evaluateRules(segment, skipRules);
-  if (ruleAction === 'auto-skip') return 'auto-skip';
-  if (ruleAction === 'mute') return 'mute';
-  if (ruleAction === 'disabled') return 'disabled';
-  if (ruleAction === 'manual') return 'show';
+  const evaluatedRuleAction = evaluateRules(segment, activeSkipRules);
+  if (evaluatedRuleAction === 'auto-skip') return 'auto-skip';
+  if (evaluatedRuleAction === 'mute') return 'mute';
+  if (evaluatedRuleAction === 'disabled') return 'disabled';
+  if (evaluatedRuleAction === 'manual') return 'show';
 
-  const pref = userPrefs[segment.category];
-  if (!pref) return 'disabled';
-  if (pref.autoSkip) return 'auto-skip';
-  if (pref.buttonAlerts) return 'show';
+  const categoryPreference = activeUserPreferences[segment.category];
+  if (!categoryPreference) return 'disabled';
+  if (categoryPreference.autoSkip) return 'auto-skip';
+  if (categoryPreference.buttonAlerts) return 'show';
+  
   return 'disabled';
 }
 
-async function requestSponsorsFromServer(videoId: string): Promise<SponsorSegment[]> {
-  console.log(LOG_PREFIX, `Requesting segments for ${videoId}...`);
-  const message: FetchSponsorsMessage = { action: 'FETCH_SPONSORS', videoId };
+async function fetchVideoSegmentsFromServer(videoId: string): Promise<SponsorSegment[]> {
+  const payload: FetchSponsorsMessage = { action: 'FETCH_SPONSORS', videoId };
 
   try {
-    const response: FetchSponsorsResponse = await chrome.runtime.sendMessage(message);
+    const response: FetchSponsorsResponse = await chrome.runtime.sendMessage(payload);
 
     if (response.error) {
-      const { code, error } = response.error;
-      if (code === 'NO_TRANSCRIPT') {
+      if (response.error.code === 'NO_TRANSCRIPT') {
         console.log(LOG_PREFIX, 'Video has no transcript.');
         return [];
       }
-      console.error(LOG_PREFIX, `[${code}] ${error}`);
+      console.error(LOG_PREFIX, `[${response.error.code}] ${response.error.error}`);
       return [];
     }
 
     if (!response.segments) return [];
-    return response.segments.map(mapServerSegment);
-  } catch (error) {
-    console.error(LOG_PREFIX, 'Failed to request sponsors:', error);
+    return response.segments.map(parseServerSegmentToLocal);
+  } catch (networkError) {
+    console.error(LOG_PREFIX, 'Failed to request sponsors:', networkError);
     return [];
   }
 }
 
-function waitForElement<T extends HTMLElement>(
-  selector: string,
-  timeoutMs = 8_000,
+function awaitDOMElement<T extends HTMLElement>(
+  selectorString: string,
+  timeoutMilliseconds = 8_000,
 ): Promise<T | null> {
-  return new Promise((resolve) => {
-    const existing = document.querySelector<T>(selector);
-    if (existing) {
-      resolve(existing);
+  return new Promise((resolveElement) => {
+    const existingElement = document.querySelector<T>(selectorString);
+    if (existingElement) {
+      resolveElement(existingElement);
       return;
     }
 
-    const observer = new MutationObserver(() => {
-      const el = document.querySelector<T>(selector);
-      if (el) {
-        observer.disconnect();
-        clearTimeout(timer);
-        resolve(el);
+    const domObserver = new MutationObserver(() => {
+      const foundElement = document.querySelector<T>(selectorString);
+      if (foundElement) {
+        domObserver.disconnect();
+        clearTimeout(timeoutTimer);
+        resolveElement(foundElement);
       }
     });
 
-    const timer = window.setTimeout(() => {
-      observer.disconnect();
-      resolve(null);
-    }, timeoutMs);
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    const timeoutTimer = window.setTimeout(() => {
+      domObserver.disconnect();
+      resolveElement(null);
+    }, timeoutMilliseconds);
+    
+    domObserver.observe(document.documentElement, { childList: true, subtree: true });
   });
 }
 
-function formatTimestamp(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
+function formatSecondsToDisplayTime(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-async function injectTimelineBlocks(): Promise<void> {
-  const progressList = await waitForElement<HTMLElement>('.ytp-progress-list');
-  if (!progressList) {
-    console.warn(LOG_PREFIX, 'Could not find .ytp-progress-list.');
+async function injectTimelineBlocksIntoPlayer(): Promise<void> {
+  const progressContainer = await awaitDOMElement<HTMLElement>('.ytp-progress-list');
+  if (!progressContainer) {
+    console.warn(LOG_PREFIX, 'Could not find .ytp-progress-list container.');
     return;
   }
 
-  progressList.querySelectorAll('.sp-timeline-block').forEach((el) => {
-    el.remove();
+  progressContainer.querySelectorAll('.sp-timeline-block').forEach((existingBlock) => {
+    existingBlock.remove();
   });
 
-  const video = document.querySelector('video');
-  if (!video) return;
+  const videoElement = document.querySelector('video');
+  if (!videoElement) return;
 
-  const duration =
-    video.duration ||
-    (await new Promise<number>((resolve) => {
-      if (video.readyState > 0) resolve(video.duration);
-      else video.addEventListener('loadedmetadata', () => resolve(video.duration), { once: true });
+  const videoDuration =
+    videoElement.duration ||
+    (await new Promise<number>((resolveDuration) => {
+      if (videoElement.readyState > 0) resolveDuration(videoElement.duration);
+      else videoElement.addEventListener('loadedmetadata', () => resolveDuration(videoElement.duration), { once: true });
     }));
 
-  if (!duration || duration <= 0) return;
+  if (!videoDuration || videoDuration <= 0) return;
 
-  currentVideoSegments.forEach((segment) => {
-    const block = document.createElement('div');
-    block.className = 'sp-timeline-block';
-    block.setAttribute('data-sp-category', segment.category);
-    if (segment.actionType === 'mute') block.setAttribute('data-sp-action', 'mute');
+  activeVideoSegments.forEach((segment) => {
+    const timelineBlock = document.createElement('div');
+    timelineBlock.className = 'sp-timeline-block';
+    timelineBlock.setAttribute('data-sp-category', segment.category);
+    
+    if (segment.actionType === 'mute') {
+      timelineBlock.setAttribute('data-sp-action', 'mute');
+    }
 
-    const leftPercent = (segment.startTime / duration) * 100;
-    const widthPercent = ((segment.endTime - segment.startTime) / duration) * 100;
+    const startPercentage = (segment.startTime / videoDuration) * 100;
+    const widthPercentage = ((segment.endTime - segment.startTime) / videoDuration) * 100;
 
-    block.style.left = `${leftPercent}%`;
-    block.style.width = `${widthPercent}%`;
+    timelineBlock.style.left = `${startPercentage}%`;
+    timelineBlock.style.width = `${widthPercentage}%`;
 
-    block.addEventListener('click', (e) => {
-      e.stopPropagation();
-      video.currentTime = segment.startTime;
+    timelineBlock.addEventListener('click', (mouseEvent) => {
+      mouseEvent.stopPropagation();
+      videoElement.currentTime = segment.startTime;
     });
 
-    progressList.appendChild(block);
+    progressContainer.appendChild(timelineBlock);
   });
 }
 
-function showUpcomingBar(segment: SponsorSegment): void {
-  const player =
+function renderUpcomingSegmentHint(segment: SponsorSegment): void {
+  const playerContainer =
     document.querySelector<HTMLElement>('#movie_player, .html5-video-player') ?? document.body;
-  let bar = document.getElementById(UPCOMING_BAR_ID) as HTMLElement | null;
+  let hintBarElement = document.getElementById(UPCOMING_HINT_BAR_ID) as HTMLElement | null;
 
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = UPCOMING_BAR_ID;
-    player.appendChild(bar);
+  if (!hintBarElement) {
+    hintBarElement = document.createElement('div');
+    hintBarElement.id = UPCOMING_HINT_BAR_ID;
+    playerContainer.appendChild(hintBarElement);
   }
 
-  bar.setAttribute('data-sp-category', segment.category);
-  bar.classList.add('sp-upcoming-visible');
+  hintBarElement.setAttribute('data-sp-category', segment.category);
+  hintBarElement.classList.add('sp-upcoming-visible');
 }
 
-function hideUpcomingBar(): void {
-  document.getElementById(UPCOMING_BAR_ID)?.classList.remove('sp-upcoming-visible');
+function removeUpcomingSegmentHint(): void {
+  document.getElementById(UPCOMING_HINT_BAR_ID)?.classList.remove('sp-upcoming-visible');
 }
 
-function hideToast(): void {
-  const toast = document.getElementById(TOAST_ID);
-  if (toast) {
-    toast.classList.remove('sp-toast-visible');
-    activeToastSegmentIndex = null;
+function removeNotificationToast(): void {
+  const toastElement = document.getElementById(TOAST_CONTAINER_ID);
+  if (toastElement) {
+    toastElement.classList.remove('sp-toast-visible');
+    currentlyDisplayedToastSegmentIndex = null;
   }
 }
 
-function showToast(segment: SponsorSegment, index: number, video: HTMLVideoElement): void {
-  if (activeToastSegmentIndex === index) return;
+function renderNotificationToast(segment: SponsorSegment, segmentIndex: number, videoElement: HTMLVideoElement): void {
+  if (currentlyDisplayedToastSegmentIndex === segmentIndex) return;
 
-  let toast = document.getElementById(TOAST_ID);
-  const player =
+  let toastElement = document.getElementById(TOAST_CONTAINER_ID);
+  const playerContainer =
     document.querySelector<HTMLElement>('#movie_player, .html5-video-player') ?? document.body;
 
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = TOAST_ID;
-    toast.setAttribute('role', 'status');
-    toast.setAttribute('aria-live', 'polite');
-    player.appendChild(toast);
+  if (!toastElement) {
+    toastElement = document.createElement('div');
+    toastElement.id = TOAST_CONTAINER_ID;
+    toastElement.setAttribute('role', 'status');
+    toastElement.setAttribute('aria-live', 'polite');
+    playerContainer.appendChild(toastElement);
   }
 
-  activeToastSegmentIndex = index;
+  currentlyDisplayedToastSegmentIndex = segmentIndex;
+  toastElement.className = '';
+  
+  if (activeNoticeVisibilityMode === 'mini') {
+    toastElement.classList.add('sp-toast-mini');
+  } else if (activeNoticeVisibilityMode === 'faded') {
+    toastElement.classList.add('sp-toast-faded');
+  }
 
-  toast.className = '';
-  if (noticeVisibilityMode === 'mini') toast.classList.add('sp-toast-mini');
-  if (noticeVisibilityMode === 'faded') toast.classList.add('sp-toast-faded');
+  const humanReadableCategoryLabel = segment.category.replace(/_/g, ' ');
 
-  const catLabel = segment.category.replace(/_/g, ' ');
-
-  toast.innerHTML = `
-    <div class="sp-toast-pulse-icon" aria-hidden="true">${PULSE_SVG}</div>
+  toastElement.innerHTML = `
+    <div class="sp-toast-pulse-icon" aria-hidden="true">${PULSE_ANIMATION_SVG}</div>
     <div class="sp-toast-content">
-      <span class="sp-toast-title">${catLabel} detected</span>
-      <span class="sp-toast-detail">Ends at ${formatTimestamp(segment.endTime)}</span>
+      <span class="sp-toast-title">${humanReadableCategoryLabel} detected</span>
+      <span class="sp-toast-detail">Ends at ${formatSecondsToDisplayTime(segment.endTime)}</span>
     </div>
-    <button class="sp-toast-skip-btn" aria-label="Skip ${catLabel} segment">Skip</button>
+    <button class="sp-toast-skip-btn" aria-label="Skip ${humanReadableCategoryLabel} segment">Skip</button>
     <button class="sp-toast-dismiss-btn" aria-label="Mark segment as incorrect" title="Mark as wrong">✕</button>
   `;
 
-  const skipBtn = toast.querySelector('.sp-toast-skip-btn') as HTMLButtonElement;
-  skipBtn.addEventListener('click', () => {
-    video.currentTime = segment.endTime;
-    skippedSegments.add(index);
-    hideToast();
+  const skipButton = toastElement.querySelector('.sp-toast-skip-btn') as HTMLButtonElement;
+  skipButton.addEventListener('click', () => {
+    executeAutoSkip(videoElement, segment, segmentIndex);
   });
 
-  const dismissBtn = toast.querySelector('.sp-toast-dismiss-btn') as HTMLButtonElement;
-  dismissBtn.addEventListener('click', () => {
-    skippedSegments.add(index);
-    void persistDismissedSegment(segment);
-    hideToast();
+  const dismissButton = toastElement.querySelector('.sp-toast-dismiss-btn') as HTMLButtonElement;
+  dismissButton.addEventListener('click', () => {
+    manuallySkippedSegmentIndices.add(segmentIndex);
+    void saveDismissedSegmentToStorage(segment);
+    removeNotificationToast();
   });
 
-  requestAnimationFrame(() => toast?.classList.add('sp-toast-visible'));
+  requestAnimationFrame(() => toastElement?.classList.add('sp-toast-visible'));
 }
 
-function segmentFingerprint(seg: SponsorSegment): string {
-  return `${seg.startTime.toFixed(1)}-${seg.endTime.toFixed(1)}-${seg.category}`;
+function generateSegmentFingerprint(segment: SponsorSegment): string {
+  return `${segment.startTime.toFixed(1)}-${segment.endTime.toFixed(1)}-${segment.category}`;
 }
 
-async function loadDismissedForVideo(videoId: string): Promise<Set<string>> {
-  const { dismissedSegments = {} } = (await chrome.storage.local.get('dismissedSegments')) as {
-    dismissedSegments: Record<string, string[]>;
+async function fetchDismissedSegmentsFromStorage(videoId: string): Promise<Set<string>> {
+  const storageData = (await chrome.storage.local.get('dismissedSegments')) as {
+    dismissedSegments?: Record<string, string[]>;
   };
-  return new Set(dismissedSegments[videoId] ?? []);
+  const dismissedMap = storageData.dismissedSegments ?? {};
+  return new Set(dismissedMap[videoId] ?? []);
 }
 
-async function persistDismissedSegment(segment: SponsorSegment): Promise<void> {
-  if (!currentVideoId) return;
-  const { dismissedSegments = {} } = (await chrome.storage.local.get('dismissedSegments')) as {
-    dismissedSegments: Record<string, string[]>;
+async function saveDismissedSegmentToStorage(segment: SponsorSegment): Promise<void> {
+  if (!activeVideoId) return;
+  const storageData = (await chrome.storage.local.get('dismissedSegments')) as {
+    dismissedSegments?: Record<string, string[]>;
   };
-  const existing = dismissedSegments[currentVideoId] ?? [];
-  const fp = segmentFingerprint(segment);
-  if (!existing.includes(fp)) {
-    dismissedSegments[currentVideoId] = [...existing, fp];
-    await chrome.storage.local.set({ dismissedSegments });
+  const dismissedMap = storageData.dismissedSegments ?? {};
+  const existingVideoDismissals = dismissedMap[activeVideoId] ?? [];
+  const segmentFingerprint = generateSegmentFingerprint(segment);
+  
+  if (!existingVideoDismissals.includes(segmentFingerprint)) {
+    dismissedMap[activeVideoId] = [...existingVideoDismissals, segmentFingerprint];
+    await chrome.storage.local.set({ dismissedSegments: dismissedMap });
   }
 }
 
-function muteVideo(video: HTMLVideoElement): void {
-  if (!isMuted) {
-    video.muted = true;
-    isMuted = true;
+function muteVideoPlayback(videoElement: HTMLVideoElement): void {
+  if (!isVideoCurrentlyMutedByExtension) {
+    videoElement.muted = true;
+    isVideoCurrentlyMutedByExtension = true;
   }
 }
 
-function unmuteVideo(video: HTMLVideoElement): void {
-  if (isMuted) {
-    video.muted = false;
-    isMuted = false;
+function unmuteVideoPlayback(videoElement: HTMLVideoElement): void {
+  if (isVideoCurrentlyMutedByExtension) {
+    videoElement.muted = false;
+    isVideoCurrentlyMutedByExtension = false;
   }
 }
 
-function attachTimeUpdateListener(): void {
-  const video = document.querySelector('video');
-  if (!video) return;
+function executeAutoSkip(videoElement: HTMLVideoElement, segment: SponsorSegment, segmentIndex: number): void {
+  videoElement.currentTime = segment.endTime;
+  manuallySkippedSegmentIndices.add(segmentIndex);
+  removeNotificationToast();
+  removeUpcomingSegmentHint();
+  unmuteVideoPlayback(videoElement);
+  if (isAudioNotificationEnabled) playSkipAudioCue();
+}
 
-  if (timeUpdateHandler) video.removeEventListener('timeupdate', timeUpdateHandler);
+function createTimeUpdateHandler(videoElement: HTMLVideoElement): () => void {
+  return () => {
+    const currentPlaybackTime = videoElement.currentTime;
+    let highestPriorityToastSegment: { index: number; segment: SponsorSegment } | null = null;
+    let isPlaybackCurrentlyInsideMutedSegment = false;
 
-  timeUpdateHandler = () => {
-    const currentTime = video.currentTime;
-    let segmentToShow: { index: number; segment: SponsorSegment } | null = null;
-    let inMuteSegment = false;
+    for (let segmentIndex = 0; segmentIndex < activeVideoSegments.length; segmentIndex++) {
+      const segment = activeVideoSegments[segmentIndex];
+      const actionToTake = determineSegmentAction(segment, segmentIndex);
+      
+      if (actionToTake === 'disabled') continue;
 
-    for (let i = 0; i < currentVideoSegments.length; i++) {
-      const segment = currentVideoSegments[i];
-      const action = resolveSegmentAction(segment, i);
-      if (action === 'disabled') continue;
+      const isInsideSegmentBoundaries = currentPlaybackTime >= segment.startTime && currentPlaybackTime < segment.endTime;
 
-      const inSegment = currentTime >= segment.startTime && currentTime < segment.endTime;
-
-      if (inSegment) {
-        if (action === 'auto-skip') {
-          video.currentTime = segment.endTime;
-          skippedSegments.add(i);
-          hideToast();
-          hideUpcomingBar();
-          unmuteVideo(video);
-          if (audioNotificationOnSkip) playSkipCue();
+      if (isInsideSegmentBoundaries) {
+        if (actionToTake === 'auto-skip') {
+          executeAutoSkip(videoElement, segment, segmentIndex);
           continue;
         }
 
-        if (action === 'mute') {
-          muteVideo(video);
-          inMuteSegment = true;
+        if (actionToTake === 'mute') {
+          muteVideoPlayback(videoElement);
+          isPlaybackCurrentlyInsideMutedSegment = true;
           continue;
         }
 
-        if (segmentToShow === null) {
-          segmentToShow = { index: i, segment };
+        if (highestPriorityToastSegment === null) {
+          highestPriorityToastSegment = { index: segmentIndex, segment };
         }
       }
 
-      if (
-        showUpcomingHint &&
-        currentTime >= segment.startTime - upcomingHintSeconds &&
-        currentTime < segment.startTime &&
-        !skippedSegments.has(i)
-      ) {
-        showUpcomingBar(segment);
+      const isInsideUpcomingHintWindow =
+        isUpcomingHintEnabled &&
+        currentPlaybackTime >= segment.startTime - upcomingHintDurationSeconds &&
+        currentPlaybackTime < segment.startTime &&
+        !manuallySkippedSegmentIndices.has(segmentIndex);
+
+      if (isInsideUpcomingHintWindow) {
+        renderUpcomingSegmentHint(segment);
       }
     }
 
-    if (!inMuteSegment) unmuteVideo(video);
+    if (!isPlaybackCurrentlyInsideMutedSegment) {
+      unmuteVideoPlayback(videoElement);
+    }
 
-    if (segmentToShow) {
-      if (showNotification) showToast(segmentToShow.segment, segmentToShow.index, video);
+    if (highestPriorityToastSegment) {
+      if (isNotificationEnabled) {
+        renderNotificationToast(highestPriorityToastSegment.segment, highestPriorityToastSegment.index, videoElement);
+      }
     } else {
-      hideToast();
+      removeNotificationToast();
     }
   };
-
-  video.addEventListener('timeupdate', timeUpdateHandler);
 }
 
-let keybindListener: ((e: KeyboardEvent) => void) | null = null;
+function initializeVideoPlaybackObserver(): void {
+  const videoElement = document.querySelector('video');
+  if (!videoElement) return;
 
-function attachKeybindListener(): void {
-  if (keybindListener) document.removeEventListener('keydown', keybindListener);
+  if (playerTimeUpdateListener) {
+    videoElement.removeEventListener('timeupdate', playerTimeUpdateListener);
+  }
 
-  keybindListener = (e: KeyboardEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
-      return;
+  playerTimeUpdateListener = createTimeUpdateHandler(videoElement);
+  videoElement.addEventListener('timeupdate', playerTimeUpdateListener);
+}
 
-    const video = document.querySelector('video');
-    if (!video) return;
+let activeKeybindListener: ((event: KeyboardEvent) => void) | null = null;
 
-    const currentTime = video.currentTime;
-    const key = e.key;
+function initializeKeyboardShortcuts(): void {
+  if (activeKeybindListener) {
+    document.removeEventListener('keydown', activeKeybindListener);
+  }
 
-    if (key === keybinds.closeNotice) {
-      hideToast();
+  activeKeybindListener = (keyboardEvent: KeyboardEvent) => {
+    const targetElement = keyboardEvent.target as HTMLElement;
+    const isUserTypingInInput = 
+      targetElement.tagName === 'INPUT' || 
+      targetElement.tagName === 'TEXTAREA' || 
+      targetElement.isContentEditable;
+      
+    if (isUserTypingInInput) return;
+
+    const videoElement = document.querySelector('video');
+    if (!videoElement) return;
+
+    const currentPlaybackTime = videoElement.currentTime;
+    const pressedKey = keyboardEvent.key;
+
+    if (pressedKey === activeKeybinds.closeNotice) {
+      removeNotificationToast();
       return;
     }
 
-    const activeIdx = activeToastSegmentIndex;
+    const currentToastIndex = currentlyDisplayedToastSegmentIndex;
 
-    if (key === keybinds.skipSegment && activeIdx !== null) {
-      const seg = currentVideoSegments[activeIdx];
-      if (seg) {
-        video.currentTime = seg.endTime;
-        skippedSegments.add(activeIdx);
-        hideToast();
+    if (pressedKey === activeKeybinds.skipSegment && currentToastIndex !== null) {
+      const activeSegment = activeVideoSegments[currentToastIndex];
+      if (activeSegment) {
+        executeAutoSkip(videoElement, activeSegment, currentToastIndex);
       }
       return;
     }
 
-    if (key === keybinds.skipToEnd && activeIdx !== null) {
-      const seg = currentVideoSegments[activeIdx];
-      if (seg) {
-        video.currentTime = seg.endTime;
+    if (pressedKey === activeKeybinds.skipToEnd && currentToastIndex !== null) {
+      const activeSegment = activeVideoSegments[currentToastIndex];
+      if (activeSegment) {
+        videoElement.currentTime = activeSegment.endTime;
       }
       return;
     }
 
-    if (key === keybinds.nextSegment) {
-      const next = currentVideoSegments.find((s) => s.startTime > currentTime);
-      if (next) video.currentTime = next.startTime;
+    if (pressedKey === activeKeybinds.nextSegment) {
+      const nextSegment = activeVideoSegments.find((segment) => segment.startTime > currentPlaybackTime);
+      if (nextSegment) {
+        videoElement.currentTime = nextSegment.startTime;
+      }
       return;
     }
 
-    if (key === keybinds.prevSegment) {
-      const prev = [...currentVideoSegments].reverse().find((s) => s.startTime < currentTime - 2);
-      if (prev) video.currentTime = prev.startTime;
+    if (pressedKey === activeKeybinds.prevSegment) {
+      const previousSegment = [...activeVideoSegments].reverse().find((segment) => segment.startTime < currentPlaybackTime - 2);
+      if (previousSegment) {
+        videoElement.currentTime = previousSegment.startTime;
+      }
       return;
     }
   };
 
-  document.addEventListener('keydown', keybindListener);
+  document.addEventListener('keydown', activeKeybindListener);
 }
 
-async function handleNewVideo(): Promise<void> {
-  if (!isWatchPage()) {
+async function handleYouTubeNavigationEvent(): Promise<void> {
+  if (!isCurrentPageWatchPage()) {
     teardownThumbnailObserver();
     setupThumbnailObserver();
     return;
@@ -461,20 +497,20 @@ async function handleNewVideo(): Promise<void> {
 
   teardownThumbnailObserver();
 
-  const videoId = getVideoId();
-  if (!videoId || videoId === currentVideoId) return;
+  const extractedVideoId = extractVideoIdFromUrl();
+  if (!extractedVideoId || extractedVideoId === activeVideoId) return;
 
-  currentVideoId = videoId;
-  currentVideoSegments = [];
-  skippedSegments.clear();
-  activeToastSegmentIndex = null;
-  isMuted = false;
-  hideToast();
-  hideUpcomingBar();
+  activeVideoId = extractedVideoId;
+  activeVideoSegments = [];
+  manuallySkippedSegmentIndices.clear();
+  currentlyDisplayedToastSegmentIndex = null;
+  isVideoCurrentlyMutedByExtension = false;
+  removeNotificationToast();
+  removeUpcomingSegmentHint();
 
-  ensureStylesInjected();
+  injectExtensionStyles();
 
-  const result = (await chrome.storage.local.get([
+  const userStorageData = (await chrome.storage.local.get([
     'userPreferences',
     'showNotification',
     'noticeVisibilityMode',
@@ -487,48 +523,50 @@ async function handleNewVideo(): Promise<void> {
     'skipRules',
   ])) as Partial<LocalStorageSchema>;
 
-  userPrefs = result.userPreferences ?? DEFAULT_USER_PREFERENCES;
-  showNotification = result.showNotification ?? DEFAULT_GLOBAL_SETTINGS.showNotification;
-  noticeVisibilityMode =
-    result.noticeVisibilityMode ?? DEFAULT_GLOBAL_SETTINGS.noticeVisibilityMode;
-  showUpcomingHint = result.showUpcomingHint ?? DEFAULT_GLOBAL_SETTINGS.showUpcomingHint;
-  upcomingHintSeconds = result.upcomingHintSeconds ?? DEFAULT_GLOBAL_SETTINGS.upcomingHintSeconds;
-  audioNotificationOnSkip =
-    result.audioNotificationOnSkip ?? DEFAULT_GLOBAL_SETTINGS.audioNotificationOnSkip;
-  minSegmentDuration = result.minSegmentDuration ?? DEFAULT_GLOBAL_SETTINGS.minSegmentDuration;
-  keybinds = result.keybinds ?? DEFAULT_KEYBINDS;
-  skipRules = result.skipRules ?? [];
+  activeUserPreferences = userStorageData.userPreferences ?? DEFAULT_USER_PREFERENCES;
+  isNotificationEnabled = userStorageData.showNotification ?? DEFAULT_GLOBAL_SETTINGS.showNotification;
+  activeNoticeVisibilityMode = userStorageData.noticeVisibilityMode ?? DEFAULT_GLOBAL_SETTINGS.noticeVisibilityMode;
+  isUpcomingHintEnabled = userStorageData.showUpcomingHint ?? DEFAULT_GLOBAL_SETTINGS.showUpcomingHint;
+  upcomingHintDurationSeconds = userStorageData.upcomingHintSeconds ?? DEFAULT_GLOBAL_SETTINGS.upcomingHintSeconds;
+  isAudioNotificationEnabled = userStorageData.audioNotificationOnSkip ?? DEFAULT_GLOBAL_SETTINGS.audioNotificationOnSkip;
+  globalMinSegmentDuration = userStorageData.minSegmentDuration ?? DEFAULT_GLOBAL_SETTINGS.minSegmentDuration;
+  activeKeybinds = userStorageData.keybinds ?? DEFAULT_KEYBINDS;
+  activeSkipRules = userStorageData.skipRules ?? [];
 
-  if (result.categoryColors) applyColorsToDocument(result.categoryColors);
+  if (userStorageData.categoryColors) {
+    applyColorsToDocument(userStorageData.categoryColors);
+  }
 
-  const channelId = detectChannelId();
-  if (channelId) {
-    const profile = await getProfileForChannel(channelId);
-    if (profile) {
-      userPrefs = profile.categoryPreferences;
-      minSegmentDuration = profile.minSegmentDuration;
-      console.log(LOG_PREFIX, `Applied profile "${profile.name}" for channel ${channelId}`);
+  const currentChannelId = detectChannelId();
+  if (currentChannelId) {
+    const channelProfile = await getProfileForChannel(currentChannelId);
+    if (channelProfile) {
+      activeUserPreferences = channelProfile.categoryPreferences;
+      globalMinSegmentDuration = channelProfile.minSegmentDuration;
+      console.log(LOG_PREFIX, `Applied profile "${channelProfile.name}" for channel ${currentChannelId}`);
     }
   }
 
-  const dismissed = await loadDismissedForVideo(videoId);
-  let segments = await requestSponsorsFromServer(videoId);
+  const dismissedSegmentFingerprints = await fetchDismissedSegmentsFromStorage(extractedVideoId);
+  let fetchedSegments = await fetchVideoSegmentsFromServer(extractedVideoId);
 
-  if (minSegmentDuration > 0) {
-    segments = segments.filter((s) => s.endTime - s.startTime >= minSegmentDuration);
+  if (globalMinSegmentDuration > 0) {
+    fetchedSegments = fetchedSegments.filter((segment) => (segment.endTime - segment.startTime) >= globalMinSegmentDuration);
   }
 
-  segments = segments.filter((s) => !dismissed.has(segmentFingerprint(s)));
-  currentVideoSegments = segments;
-  cacheSegmentsForVideo(videoId, segments);
+  fetchedSegments = fetchedSegments.filter((segment) => !dismissedSegmentFingerprints.has(generateSegmentFingerprint(segment)));
+  activeVideoSegments = fetchedSegments;
+  cacheSegmentsForVideo(extractedVideoId, fetchedSegments);
 
-  if (currentVideoSegments.length > 0) {
-    console.log(LOG_PREFIX, `Found ${currentVideoSegments.length} segments.`);
-    void injectTimelineBlocks();
-    attachTimeUpdateListener();
-    attachKeybindListener();
+  if (activeVideoSegments.length > 0) {
+    console.log(LOG_PREFIX, `Found ${activeVideoSegments.length} segments.`);
+    void injectTimelineBlocksIntoPlayer();
+    initializeVideoPlaybackObserver();
+    initializeKeyboardShortcuts();
   }
 }
 
-document.addEventListener('yt-navigate-finish', () => void handleNewVideo());
-void handleNewVideo();
+document.addEventListener('yt-navigate-finish', () => {
+  void handleYouTubeNavigationEvent();
+});
+void handleYouTubeNavigationEvent();

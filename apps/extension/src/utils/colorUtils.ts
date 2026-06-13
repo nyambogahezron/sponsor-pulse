@@ -1,30 +1,23 @@
 import type { SegmentCategory } from '../types/shared';
+import { SEGMENT_CATEGORIES } from '../types/shared';
 import type { CategoryColors } from '../types/storage';
+
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{3,8}$/;
 
 export function applyColorsToDocument(colors: CategoryColors): void {
   if (!colors || Object.keys(colors).length === 0) return;
-  const root = document.documentElement;
-  for (const [category, hex] of Object.entries(colors) as [SegmentCategory, string][]) {
-    if (hex && /^#[0-9a-fA-F]{3,8}$/.test(hex)) {
-      root.style.setProperty(`--sp-color-${category}`, hex);
+  const documentRoot = document.documentElement;
+  for (const [category, hexColor] of Object.entries(colors) as [SegmentCategory, string][]) {
+    if (hexColor && HEX_COLOR_PATTERN.test(hexColor)) {
+      documentRoot.style.setProperty(`--sp-color-${category}`, hexColor);
     }
   }
 }
 
 export function resetColorsOnDocument(): void {
-  const root = document.documentElement;
-  const allCategories: SegmentCategory[] = [
-    'sponsor',
-    'shoutout',
-    'course_promo',
-    'merch',
-    'product_sale',
-    'event_promo',
-    'intro_creator',
-    'intro_external',
-  ];
-  for (const category of allCategories) {
-    root.style.removeProperty(`--sp-color-${category}`);
+  const documentRoot = document.documentElement;
+  for (const category of SEGMENT_CATEGORIES) {
+    documentRoot.style.removeProperty(`--sp-color-${category}`);
   }
 }
 
