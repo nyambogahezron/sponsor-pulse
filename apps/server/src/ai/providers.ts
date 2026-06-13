@@ -140,7 +140,11 @@ let aiProviderInstances: Record<string, IAIProvider> = {};
 
 export const AIProviderFactory = {
   create(requestedProvider?: string): IAIProvider {
-    const key = (requestedProvider ?? process.env.ACTIVE_LLM ?? 'gemini').toLowerCase() as ProviderKey;
+    const key = (
+      requestedProvider ??
+      process.env.ACTIVE_LLM ??
+      'gemini'
+    ).toLowerCase() as ProviderKey;
     if (!CONFIGS[key]) {
       throw new Error(
         `Unknown provider "${key}". Valid values: ${Object.keys(CONFIGS).join(', ')}`,

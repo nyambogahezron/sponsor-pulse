@@ -1,9 +1,9 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { SEGMENT_CATEGORIES } from '../shared';
 import { AIProviderFactory } from '../ai/providers';
 import { fetchTranscript, TranscriptNotAvailableError } from '../lib/transcript';
+import { SEGMENT_CATEGORIES } from '../shared';
 import type { AnalyzeResponse, ErrorResponse } from '../types';
 import { incrementFailureCount, incrementSuccessCount } from './health';
 

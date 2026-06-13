@@ -11,23 +11,24 @@
   --sp-ease: 0.2s ease;
   --sp-ease-spring: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* Segment category colors */
-  --sp-color-sponsor: #22c55e;
-  --sp-color-merch: #eab308;
+  /* Segment category colors — overridable via colorUtils.ts */
+  --sp-color-sponsor:       #22c55e;
+  --sp-color-merch:         #eab308;
   --sp-color-intro_creator: #3b82f6;
-  --sp-color-intro_external: #8b5cf6;
-  --sp-color-shoutout: #ec4899;
-  --sp-color-course_promo: #f97316;
-  --sp-color-product_sale: #06b6d4;
-  --sp-color-event_promo: #ef4444;
+  --sp-color-intro_external:#8b5cf6;
+  --sp-color-shoutout:      #ec4899;
+  --sp-color-course_promo:  #f97316;
+  --sp-color-product_sale:  #06b6d4;
+  --sp-color-event_promo:   #ef4444;
 }
 
-/* Timeline Blocks */
+/* ── Timeline blocks ─────────────────────────────────────────────────────── */
+
 .sp-timeline-block {
   position: absolute;
   top: 0;
   height: 100%;
-  z-index: 39; /* sits above default progress background but below playhead */
+  z-index: 39;
   opacity: 0.75;
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -37,6 +38,17 @@
 .sp-timeline-block:hover {
   opacity: 1;
   transform: scaleY(1.3);
+}
+
+/* Mute-action blocks get a diagonal stripe pattern */
+.sp-timeline-block[data-sp-action="mute"] {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 4px,
+    rgba(0,0,0,0.25) 4px,
+    rgba(0,0,0,0.25) 8px
+  );
 }
 
 .sp-timeline-block::after {
@@ -67,16 +79,45 @@
 }
 
 /* Category colors */
-.sp-timeline-block[data-sp-category="sponsor"] { background-color: var(--sp-color-sponsor); }
-.sp-timeline-block[data-sp-category="merch"] { background-color: var(--sp-color-merch); }
-.sp-timeline-block[data-sp-category="intro_creator"] { background-color: var(--sp-color-intro_creator); }
+.sp-timeline-block[data-sp-category="sponsor"]        { background-color: var(--sp-color-sponsor); }
+.sp-timeline-block[data-sp-category="merch"]          { background-color: var(--sp-color-merch); }
+.sp-timeline-block[data-sp-category="intro_creator"]  { background-color: var(--sp-color-intro_creator); }
 .sp-timeline-block[data-sp-category="intro_external"] { background-color: var(--sp-color-intro_external); }
-.sp-timeline-block[data-sp-category="shoutout"] { background-color: var(--sp-color-shoutout); }
-.sp-timeline-block[data-sp-category="course_promo"] { background-color: var(--sp-color-course_promo); }
-.sp-timeline-block[data-sp-category="product_sale"] { background-color: var(--sp-color-product_sale); }
-.sp-timeline-block[data-sp-category="event_promo"] { background-color: var(--sp-color-event_promo); }
+.sp-timeline-block[data-sp-category="shoutout"]       { background-color: var(--sp-color-shoutout); }
+.sp-timeline-block[data-sp-category="course_promo"]   { background-color: var(--sp-color-course_promo); }
+.sp-timeline-block[data-sp-category="product_sale"]   { background-color: var(--sp-color-product_sale); }
+.sp-timeline-block[data-sp-category="event_promo"]    { background-color: var(--sp-color-event_promo); }
 
-/* Interactive Toast Overlay */
+/* ── Upcoming segment hint bar ───────────────────────────────────────────── */
+
+#sp-upcoming-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 99998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+#sp-upcoming-bar.sp-upcoming-visible {
+  opacity: 1;
+}
+
+/* Category-tinted upcoming bars */
+#sp-upcoming-bar[data-sp-category="sponsor"]        { background: var(--sp-color-sponsor); }
+#sp-upcoming-bar[data-sp-category="merch"]          { background: var(--sp-color-merch); }
+#sp-upcoming-bar[data-sp-category="intro_creator"]  { background: var(--sp-color-intro_creator); }
+#sp-upcoming-bar[data-sp-category="intro_external"] { background: var(--sp-color-intro_external); }
+#sp-upcoming-bar[data-sp-category="shoutout"]       { background: var(--sp-color-shoutout); }
+#sp-upcoming-bar[data-sp-category="course_promo"]   { background: var(--sp-color-course_promo); }
+#sp-upcoming-bar[data-sp-category="product_sale"]   { background: var(--sp-color-product_sale); }
+#sp-upcoming-bar[data-sp-category="event_promo"]    { background: var(--sp-color-event_promo); }
+
+/* ── Interactive Toast ───────────────────────────────────────────────────── */
+
 #sp-toast {
   position: absolute;
   bottom: 70px;
@@ -84,8 +125,8 @@
   z-index: 99999;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 18px;
+  gap: 12px;
+  padding: 12px 16px;
   background: var(--sp-surface);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -103,6 +144,32 @@
   opacity: 1;
   pointer-events: auto;
   transform: translateX(0);
+}
+
+/* Mini mode — compact, icon hidden */
+#sp-toast.sp-toast-mini {
+  padding: 8px 12px;
+  border-radius: 8px;
+  gap: 8px;
+}
+
+#sp-toast.sp-toast-mini .sp-toast-pulse-icon { display: none; }
+#sp-toast.sp-toast-mini .sp-toast-detail { display: none; }
+#sp-toast.sp-toast-mini .sp-toast-title { font-size: 12px; }
+
+/* Faded mode — auto-hides after 2s via animation */
+#sp-toast.sp-toast-faded {
+  opacity: 0.55;
+  animation: sp-fade-out 2s ease 1.5s forwards;
+}
+
+#sp-toast.sp-toast-faded:hover {
+  opacity: 1;
+  animation: none;
+}
+
+@keyframes sp-fade-out {
+  to { opacity: 0; pointer-events: none; }
 }
 
 .sp-toast-pulse-icon {
@@ -127,17 +194,20 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
 .sp-toast-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--sp-text);
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .sp-toast-detail {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--sp-muted);
   white-space: nowrap;
 }
@@ -149,15 +219,15 @@
   background: var(--sp-red);
   color: #fff;
   border: none;
-  padding: 8px 16px;
+  padding: 7px 14px;
   border-radius: 8px;
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   transition: all var(--sp-ease);
-  box-shadow: 0 0 12px var(--sp-red-glow);
-  margin-left: 8px;
+  box-shadow: 0 0 10px var(--sp-red-glow);
+  flex-shrink: 0;
 }
 
 .sp-toast-skip-btn:hover {
@@ -166,6 +236,58 @@
   transform: translateY(-1px);
 }
 
-.sp-toast-skip-btn:active {
-  transform: scale(0.96);
+.sp-toast-skip-btn:active { transform: scale(0.96); }
+
+/* Dismiss (mark as wrong) button */
+.sp-toast-dismiss-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--sp-muted);
+  border: 1px solid rgba(255,255,255,0.1);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+  transition: all var(--sp-ease);
+  flex-shrink: 0;
 }
+
+.sp-toast-dismiss-btn:hover {
+  color: var(--sp-text);
+  border-color: rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.06);
+}
+
+/* ── Thumbnail category labels ───────────────────────────────────────────── */
+
+.sp-thumb-label {
+  display: none;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-family: 'Roboto', 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: capitalize;
+  pointer-events: none;
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+.sp-thumb-label[data-sp-category="sponsor"]        { background: rgba(34, 197, 94, 0.85); }
+.sp-thumb-label[data-sp-category="merch"]          { background: rgba(234, 179, 8, 0.85); }
+.sp-thumb-label[data-sp-category="intro_creator"]  { background: rgba(59, 130, 246, 0.85); }
+.sp-thumb-label[data-sp-category="intro_external"] { background: rgba(139, 92, 246, 0.85); }
+.sp-thumb-label[data-sp-category="shoutout"]       { background: rgba(236, 72, 153, 0.85); }
+.sp-thumb-label[data-sp-category="course_promo"]   { background: rgba(249, 115, 22, 0.85); }
+.sp-thumb-label[data-sp-category="product_sale"]   { background: rgba(6, 182, 212, 0.85); }
+.sp-thumb-label[data-sp-category="event_promo"]    { background: rgba(239, 68, 68, 0.85); }

@@ -8,8 +8,8 @@
     "preview": "bunx serve dist",
     "icons": "node scripts/generate-icons.mjs",
     "check": "tsc -noEmit",
-    "lint": "bunx biome check --fix .",
-    "format": "bunx biome format --write ."
+    "lint": "biome check --unsafe .",
+    "format": "biome check --write ."
   },
   "dependencies": {},
   "devDependencies": {

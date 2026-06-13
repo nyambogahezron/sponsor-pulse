@@ -23,7 +23,7 @@
       </div>
       <div class="title-group">
         <span class="title">SponsorPulse AI</span>
-        <span class="version">v0.1.0-beta</span>
+        <span class="version">v0.2.0-beta</span>
       </div>
     </header>
 
@@ -46,13 +46,14 @@
 
     <!-- ── Settings panel ── -->
     <div class="settings-section" id="settings-panel">
-      <p class="settings-heading">Settings</p>
 
-      <!-- AI Provider -->
+      <!-- ── AI & Core ── -->
+      <p class="settings-heading">AI & Detection</p>
+
       <div class="setting-row">
         <div class="setting-info">
           <span class="setting-label">AI Provider</span>
-          <span class="setting-desc">Which AI model to use</span>
+          <span class="setting-desc">Model used for analysis</span>
         </div>
         <select id="ai-provider-select" aria-label="AI Provider">
           <option value="gemini">Gemini</option>
@@ -62,11 +63,22 @@
         </select>
       </div>
 
-      <!-- Show notification -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Min segment duration</span>
+          <span class="setting-desc">Ignore segments shorter than <span id="min-duration-display">0</span>s</span>
+        </div>
+        <input type="range" id="min-duration-slider" min="0" max="30" step="1"
+               aria-label="Minimum segment duration in seconds" class="sp-slider" />
+      </div>
+
+      <!-- ── Notifications ── -->
+      <p class="settings-heading">Notifications</p>
+
       <div class="setting-row">
         <div class="setting-info">
           <span class="setting-label">Skip notification</span>
-          <span class="setting-desc">Show toast on auto-skip</span>
+          <span class="setting-desc">Show toast when segment detected</span>
         </div>
         <label class="switch" aria-label="Show skip notification">
           <input type="checkbox" id="notification-toggle" />
@@ -74,13 +86,110 @@
         </label>
       </div>
 
-      <p class="settings-heading" style="margin-top: 1rem;">Auto-skip Categories</p>
-      <div id="category-toggles-container" style="display: flex; flex-direction: column; gap: 8px;">
-        <!-- Dynamically populated by popup.ts -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Notice style</span>
+          <span class="setting-desc">Toast appearance on auto-skip</span>
+        </div>
+        <select id="notice-mode-select" aria-label="Notice visibility mode">
+          <option value="full">Full</option>
+          <option value="mini">Mini</option>
+          <option value="faded">Faded</option>
+        </select>
       </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Upcoming hint</span>
+          <span class="setting-desc">Show bar <span id="hint-seconds-display">5</span>s before segment</span>
+        </div>
+        <label class="switch" aria-label="Show upcoming segment hint">
+          <input type="checkbox" id="upcoming-hint-toggle" />
+          <span class="switch-track"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Audio cue on skip</span>
+          <span class="setting-desc">Play a subtle tone when auto-skipping</span>
+        </div>
+        <label class="switch" aria-label="Audio cue on auto-skip">
+          <input type="checkbox" id="audio-cue-toggle" />
+          <span class="switch-track"></span>
+        </label>
+      </div>
+
+      <!-- ── Auto-skip categories ── -->
+      <p class="settings-heading" style="margin-top: 4px;">Auto-skip Categories</p>
+      <div id="category-toggles-container" style="display: flex; flex-direction: column;"></div>
+
+      <!-- ── Keybinds ── -->
+      <details class="settings-disclosure">
+        <summary class="settings-heading settings-heading--summary">Keyboard Shortcuts</summary>
+        <div id="keybind-rows-container"></div>
+      </details>
+
+      <!-- ── Skip Profiles ── -->
+      <details class="settings-disclosure">
+        <summary class="settings-heading settings-heading--summary">Skip Profiles</summary>
+        <div class="setting-row setting-row--info">
+          <span class="setting-desc">Save named category presets and assign them to specific YouTube channels.</span>
+        </div>
+        <div id="profiles-container"></div>
+        <div class="setting-row">
+          <input type="text" id="new-profile-name" class="sp-text-input" placeholder="Profile name…" aria-label="New profile name" />
+          <button id="create-profile-btn" class="sp-btn sp-btn--primary">Create</button>
+        </div>
+      </details>
+
+      <!-- ── Colors ── -->
+      <details class="settings-disclosure">
+        <summary class="settings-heading settings-heading--summary">Category Colors</summary>
+        <div id="color-pickers-container"></div>
+      </details>
+
+      <!-- ── Skip Rules ── -->
+      <details class="settings-disclosure">
+        <summary class="settings-heading settings-heading--summary">Advanced Rules</summary>
+        <div class="setting-row setting-row--info">
+          <span class="setting-desc">Rules override category preferences. First matching rule wins.</span>
+        </div>
+        <div id="rules-container"></div>
+        <div class="setting-row">
+          <button id="add-rule-btn" class="sp-btn sp-btn--secondary" style="width:100%">+ Add Rule</button>
+        </div>
+      </details>
+
+      <!-- ── Data tools ── -->
+      <details class="settings-disclosure">
+        <summary class="settings-heading settings-heading--summary">Data & Debugging</summary>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Export segments</span>
+            <span class="setting-desc">Copy current video's segments to clipboard</span>
+          </div>
+          <button id="export-segments-btn" class="sp-btn sp-btn--secondary">Export</button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Debug info</span>
+            <span class="setting-desc">Copy extension state to clipboard</span>
+          </div>
+          <button id="debug-export-btn" class="sp-btn sp-btn--secondary">Copy</button>
+        </div>
+        <div class="setting-row setting-row--danger">
+          <div class="setting-info">
+            <span class="setting-label">Reset to defaults</span>
+            <span class="setting-desc">Clears all settings and data</span>
+          </div>
+          <button id="reset-btn" class="sp-btn sp-btn--danger">Reset</button>
+        </div>
+      </details>
+
     </div>
 
-    <footer class="footer">YouTube sponsor detection · local-only</footer>
+    <footer class="footer">SponsorPulse AI · AI-powered segment detection</footer>
 
     <script type="module" src="./popup.ts"></script>
   </body>

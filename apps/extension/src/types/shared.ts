@@ -6,10 +6,10 @@ export const SEGMENT_CATEGORIES = [
   'product_sale',
   'event_promo',
   'intro_creator',
-  'intro_external'
+  'intro_external',
 ] as const;
 
-export type SegmentCategory = typeof SEGMENT_CATEGORIES[number];
+export type SegmentCategory = (typeof SEGMENT_CATEGORIES)[number];
 
 export interface ServerSponsorSegment {
   start: number;
