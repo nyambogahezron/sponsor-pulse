@@ -11,6 +11,7 @@ import type {
   SponsorSegment,
 } from '../types/types';
 import { runtime, storage, tabs } from '../utils/browserApi';
+import { getHashPrefix } from '../utils/crypto';
 
 const LOG_PREFIX = '[SponsorPulse:BG]';
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1/analyze';
@@ -33,6 +34,7 @@ runtime.onInstalled.addListener((details) => {
 
 function mapServerSegment(seg: ServerSponsorSegment): SponsorSegment {
   return {
+    uuid: seg.uuid,
     startTime: seg.start,
     endTime: seg.end,
     category: seg.category,
@@ -52,9 +54,39 @@ runtime.onMessage.addListener(
       console.log(LOG_PREFIX, `Fetching sponsors for videoId: ${typedMessage.videoId}`);
 
       try {
+        const hashPrefix = await getHashPrefix(typedMessage.videoId);
         const result = await storage.local.get(['aiProvider']);
         const provider = (result.aiProvider as string) || 'gemini';
 
+        // Try GET first with K-Anonymity hash prefix
+        try {
+          const getRes = await fetch(`${SERVER_URL}/${hashPrefix}`);
+          if (getRes.ok) {
+            const cachedScans = (await getRes.json()) as {
+              videoId: string;
+              segments: ServerSponsorSegment[];
+              provider: string;
+              analyzedAt: number;
+            }[];
+
+            const matchedScan = cachedScans.find((s) => s.videoId === typedMessage.videoId);
+            if (matchedScan) {
+              console.log(
+                LOG_PREFIX,
+                `K-Anonymity cache hit for ${typedMessage.videoId} via prefix ${hashPrefix}.`,
+              );
+              return { segments: matchedScan.segments };
+            }
+          }
+        } catch (e) {
+          console.warn(
+            LOG_PREFIX,
+            'Failed to fetch from K-Anonymity cache, falling back to POST.',
+            e,
+          );
+        }
+
+        // Fallback to POST for fresh analysis
         const res = await fetch(SERVER_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

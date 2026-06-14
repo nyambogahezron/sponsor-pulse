@@ -1,7 +1,7 @@
 import { SEGMENT_CATEGORIES } from '../shared';
 import type { SegmentCategory, SponsorSegment } from '../types';
 
-export function parseSegments(rawLlmResponse: string): SponsorSegment[] {
+export function parseSegments(rawLlmResponse: string): Omit<SponsorSegment, 'uuid'>[] {
   const cleanedJsonString = rawLlmResponse
     .trim()
     .replace(/^```(?:json)?\s*/i, '')

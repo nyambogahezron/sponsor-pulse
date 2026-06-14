@@ -18,6 +18,7 @@ export interface TranscriptChunk {
 export type SegmentActionType = 'skip' | 'mute';
 
 export interface SponsorSegment {
+  uuid: string;
   startTime: number;
   endTime: number;
   confidence: number;

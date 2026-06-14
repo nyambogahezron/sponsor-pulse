@@ -10,7 +10,7 @@
     "build:edge": "tsc && BROWSER=edge vite build",
     "build:safari": "tsc && BROWSER=safari vite build",
     "build:all": "bun run build:chrome && bun run build:firefox && bun run build:edge && bun run build:safari",
-    "preview": "bunx serve dist-chrome",
+    "preview": "bunx serve dist/chrome",
     "icons": "node scripts/generate-icons.mjs",
     "check": "tsc -noEmit",
     "lint": "biome check .",

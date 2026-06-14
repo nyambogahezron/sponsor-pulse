@@ -28,6 +28,7 @@ export const dataset: BenchmarkFixture[] = [
     `.trim(),
     expectedSegments: [
       {
+        uuid: 'test-uuid-1',
         start: 45,
         end: 140, // [00:02:20]
         category: 'sponsor',
@@ -46,6 +47,7 @@ export const dataset: BenchmarkFixture[] = [
     `.trim(),
     expectedSegments: [
       {
+        uuid: 'test-uuid-2',
         start: 0,
         end: 30, // [00:00:30]
         category: 'merch',
@@ -66,6 +68,7 @@ export const dataset: BenchmarkFixture[] = [
     `.trim(),
     expectedSegments: [
       {
+        uuid: 'test-uuid-3',
         start: 7,
         end: 22,
         category: 'intro_creator',

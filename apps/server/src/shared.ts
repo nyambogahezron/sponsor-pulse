@@ -12,6 +12,7 @@ export const SEGMENT_CATEGORIES = [
 export type SegmentCategory = (typeof SEGMENT_CATEGORIES)[number];
 
 export interface ServerSponsorSegment {
+  uuid: string;
   start: number;
   end: number;
   category: SegmentCategory;

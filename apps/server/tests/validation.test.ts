@@ -130,6 +130,11 @@ describe('Validation & Edge Case Tests', () => {
 
     // Only the first one should survive the route's ServerSponsorSegmentSchema validation
     expect(json.segments).toHaveLength(1);
-    expect(json.segments[0]).toEqual({ start: 10, end: 20, category: 'sponsor' });
+    expect(json.segments[0]).toEqual({
+      uuid: expect.any(String),
+      start: 10,
+      end: 20,
+      category: 'sponsor',
+    });
   });
 });

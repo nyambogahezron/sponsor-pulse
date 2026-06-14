@@ -144,7 +144,7 @@ class LLMProvider implements IAIProvider {
     this.name = this.configuration.name;
   }
 
-  async analyzeTranscript(transcriptText: string): Promise<SponsorSegment[]> {
+  async analyzeTranscript(transcriptText: string): Promise<Omit<SponsorSegment, 'uuid'>[]> {
     const endpointUrl = this.configuration.buildUrl(this.modelId, this.apiKey);
 
     const apiResponse = await fetch(endpointUrl, {

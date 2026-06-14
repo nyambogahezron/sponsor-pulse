@@ -106,7 +106,7 @@ describe('AI Provider Benchmarking', () => {
             const provider = AIProviderFactory.create();
 
             // We expect at least the API call to succeed
-            let segments: SponsorSegment[];
+            let segments: Omit<SponsorSegment, 'uuid'>[];
             try {
               segments = await provider.analyzeTranscript(fixture.transcript);
             } catch (err) {

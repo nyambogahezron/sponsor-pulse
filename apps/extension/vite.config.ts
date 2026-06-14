@@ -46,7 +46,7 @@ function buildManifest(b: Browser): Plugin {
     name: 'build-manifest',
     closeBundle() {
       const root = resolve(__dirname);
-      const out = resolve(root, `dist-${b}`);
+      const out = resolve(root, `dist/${b}`);
       const base = readJson(join(root, 'public', 'manifest.json'));
       const extra = readJson(join(root, 'public', 'manifests', `${b}-extra.json`));
       mergeManifests(base, extra);
@@ -61,7 +61,7 @@ function copyPolyfill(b: Browser): Plugin | null {
   return {
     name: 'copy-polyfill',
     closeBundle() {
-      const out = resolve(__dirname, `dist-${b}`);
+      const out = resolve(__dirname, `dist/${b}`);
       const src = resolve(__dirname, 'node_modules/webextension-polyfill/dist/browser-polyfill.js');
       mkdirSync(out, { recursive: true });
       copyFileSync(src, join(out, 'browser-polyfill.js'));
@@ -73,7 +73,7 @@ function flattenHtmlOutputs(b: Browser): Plugin {
   return {
     name: 'flatten-html-outputs',
     closeBundle() {
-      const dist = resolve(__dirname, `dist-${b}`);
+      const dist = resolve(__dirname, `dist/${b}`);
 
       function walk(dir: string): string[] {
         return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -99,7 +99,7 @@ function cleanDist(b: Browser): Plugin {
     name: 'clean-dist',
     enforce: 'post',
     closeBundle() {
-      const dist = resolve(__dirname, `dist-${b}`);
+      const dist = resolve(__dirname, `dist/${b}`);
 
       for (const dir of [join(dist, 'manifests'), join(dist, 'assets')]) {
         if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
@@ -126,7 +126,7 @@ export default defineConfig({
     cleanDist(browser),
   ],
   build: {
-    outDir: `dist-${browser}`,
+    outDir: `dist/${browser}`,
     emptyOutDir: true,
     sourcemap: false,
     assetsInlineLimit: 0,

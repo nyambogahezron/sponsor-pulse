@@ -4,10 +4,14 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "vite",
+    "build": "vite build",
     "preview": "vite preview",
     "lint": "biome check .",
     "lint:fix": "biome check --fix .",
     "cleanup": "rm -rf dist* node_modules package-lock.json bun.lock *.tsbuildinfo .turbo",
     "format": "biome check --write ."
+  },
+  "devDependencies": {
+    "vite": "^7.2.4"
   }
 }

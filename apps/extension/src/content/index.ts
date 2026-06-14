@@ -96,6 +96,7 @@ function playSkipAudioCue(): void {
 
 function parseServerSegmentToLocal(serverSegment: ServerSponsorSegment): SponsorSegment {
   return {
+    uuid: serverSegment.uuid,
     startTime: serverSegment.start,
     endTime: serverSegment.end,
     category: serverSegment.category,

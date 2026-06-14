@@ -62,6 +62,7 @@ export function importSegments(rawText: string, videoDuration: number): SponsorS
         : null;
 
     parsedSegments.push({
+      uuid: crypto.randomUUID(),
       startTime,
       endTime: endTime ?? videoDuration,
       category: detectCategoryFromLine(line),

@@ -1,11 +1,18 @@
+import * as crypto from 'node:crypto';
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { AIProviderFactory } from '../ai/providers';
 import { fetchTranscript, TranscriptNotAvailableError } from '../lib/transcript';
 import { SEGMENT_CATEGORIES } from '../shared';
-import type { AnalyzeResponse, ErrorResponse } from '../types';
+import type {
+  AnalyzeResponse,
+  ErrorResponse,
+  SponsorSegment as ServerSponsorSegment,
+} from '../types';
 import { incrementFailureCount, incrementSuccessCount } from './health';
+
+const segmentCache = new Map<string, AnalyzeResponse[]>();
 
 const SegmentCategorySchema = z.enum(SEGMENT_CATEGORIES);
 const ServerSponsorSegmentSchema = z.object({
@@ -22,6 +29,26 @@ const analyzeRequestSchema = z
     provider: z.enum(['gemini', 'openai', 'claude', 'deepseek']).optional(),
   })
   .strict();
+
+analyze.get('/:hashPrefix', (context) => {
+  const hashPrefix = context.req.param('hashPrefix');
+  if (!hashPrefix || hashPrefix.length < 4) {
+    return context.json<ErrorResponse>(
+      { error: 'Invalid hash prefix.', code: 'INVALID_PREFIX' },
+      400,
+    );
+  }
+
+  const cachedResults = segmentCache.get(hashPrefix) || [];
+  if (cachedResults.length === 0) {
+    return context.json<ErrorResponse>(
+      { error: 'No data for this prefix.', code: 'NOT_FOUND' },
+      404,
+    );
+  }
+
+  return context.json<AnalyzeResponse[]>(cachedResults);
+});
 
 analyze.post(
   '/',
@@ -84,14 +111,24 @@ analyze.post(
     try {
       const rawAiSegments = await aiProviderInstance.analyzeTranscript(videoTranscript);
 
-      detectedSegments = rawAiSegments.filter((segmentCandidate) => {
-        const parsedValidation = ServerSponsorSegmentSchema.safeParse(segmentCandidate);
-        if (!parsedValidation.success) {
-          console.warn('[/analyze] Stripped hallucinatory/invalid segment:', segmentCandidate);
-          return false;
-        }
-        return true;
-      });
+      detectedSegments = rawAiSegments
+        .filter((segmentCandidate) => {
+          // The base validation passes without uuid
+          const parsedValidation = ServerSponsorSegmentSchema.safeParse(segmentCandidate);
+          if (!parsedValidation.success) {
+            console.warn('[/analyze] Stripped hallucinatory/invalid segment:', segmentCandidate);
+            return false;
+          }
+          return true;
+        })
+        .map(
+          (validSegment): ServerSponsorSegment => ({
+            uuid: crypto.randomUUID(),
+            start: validSegment.start,
+            end: validSegment.end,
+            category: validSegment.category,
+          }),
+        );
     } catch (analysisError) {
       incrementFailureCount();
       console.error('[/analyze] AI analysis failed:', analysisError);
@@ -102,12 +139,24 @@ analyze.post(
     }
 
     incrementSuccessCount();
-    return context.json<AnalyzeResponse>({
+
+    const responsePayload: AnalyzeResponse = {
       videoId,
       segments: detectedSegments,
       provider: aiProviderInstance.name,
       analyzedAt: Date.now(),
-    });
+    };
+
+    // Calculate hash prefix and store in cache
+    const hash = crypto.createHash('sha256').update(videoId).digest('hex');
+    const prefix = hash.substring(0, 4);
+    const existingGroup = segmentCache.get(prefix) || [];
+    // Replace if it already exists in the cache, otherwise push
+    const filteredGroup = existingGroup.filter((r) => r.videoId !== videoId);
+    filteredGroup.push(responsePayload);
+    segmentCache.set(prefix, filteredGroup);
+
+    return context.json<AnalyzeResponse>(responsePayload);
   },
 );
 
