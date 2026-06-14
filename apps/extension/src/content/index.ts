@@ -9,7 +9,13 @@ import type {
   ServerSponsorSegment,
   SponsorSegment,
 } from '../types/types';
+import { partition } from '../utils/arrayUtils';
+import { runtime, storage } from '../utils/browserApi';
 import { applyColorsToDocument } from '../utils/colorUtils';
+import { logDebug, logWarn } from '../utils/logger';
+import { isMobileControlsOpen } from '../utils/mobileUtils';
+import { cleanPage } from '../utils/pageCleaner';
+import { getUrlStartTime, isInPreviewPlayer } from '../utils/pageUtils';
 import { detectChannelId, getProfileForChannel } from '../utils/skipProfiles';
 import { evaluateRules } from '../utils/skipRuleParser';
 import {
@@ -18,7 +24,6 @@ import {
   teardownThumbnailObserver,
 } from '../utils/thumbnailLabels';
 
-const LOG_PREFIX = '[SponsorPulse]';
 const INJECTED_STYLE_ID = 'sp-styles';
 const TOAST_CONTAINER_ID = 'sp-toast';
 const UPCOMING_HINT_BAR_ID = 'sp-upcoming-bar';
@@ -126,21 +131,21 @@ async function fetchVideoSegmentsFromServer(videoId: string): Promise<SponsorSeg
   const payload: FetchSponsorsMessage = { action: 'FETCH_SPONSORS', videoId };
 
   try {
-    const response: FetchSponsorsResponse = await chrome.runtime.sendMessage(payload);
+    const response: FetchSponsorsResponse = await runtime.sendMessage(payload);
 
     if (response.error) {
       if (response.error.code === 'NO_TRANSCRIPT') {
-        console.log(LOG_PREFIX, 'Video has no transcript.');
+        logDebug('Video has no transcript.');
         return [];
       }
-      console.error(LOG_PREFIX, `[${response.error.code}] ${response.error.error}`);
+      logWarn(`[${response.error.code}] ${response.error.error}`);
       return [];
     }
 
     if (!response.segments) return [];
     return response.segments.map(parseServerSegmentToLocal);
   } catch (networkError) {
-    console.error(LOG_PREFIX, 'Failed to request sponsors:', networkError);
+    logWarn(`Failed to request sponsors: ${String(networkError)}`);
     return [];
   }
 }
@@ -183,9 +188,11 @@ function formatSecondsToDisplayTime(totalSeconds: number): string {
 async function injectTimelineBlocksIntoPlayer(): Promise<void> {
   const progressContainer = await awaitDOMElement<HTMLElement>('.ytp-progress-list');
   if (!progressContainer) {
-    console.warn(LOG_PREFIX, 'Could not find .ytp-progress-list container.');
+    logWarn('Could not find .ytp-progress-list container.');
     return;
   }
+
+  if (isInPreviewPlayer(progressContainer) || isMobileControlsOpen()) return;
 
   progressContainer.querySelectorAll('.sp-timeline-block').forEach((existingBlock) => {
     existingBlock.remove();
@@ -319,7 +326,7 @@ function generateSegmentFingerprint(segment: SponsorSegment): string {
 }
 
 async function fetchDismissedSegmentsFromStorage(videoId: string): Promise<Set<string>> {
-  const storageData = (await chrome.storage.local.get('dismissedSegments')) as {
+  const storageData = (await storage.local.get('dismissedSegments')) as {
     dismissedSegments?: Record<string, string[]>;
   };
   const dismissedMap = storageData.dismissedSegments ?? {};
@@ -328,7 +335,7 @@ async function fetchDismissedSegmentsFromStorage(videoId: string): Promise<Set<s
 
 async function saveDismissedSegmentToStorage(segment: SponsorSegment): Promise<void> {
   if (!activeVideoId) return;
-  const storageData = (await chrome.storage.local.get('dismissedSegments')) as {
+  const storageData = (await storage.local.get('dismissedSegments')) as {
     dismissedSegments?: Record<string, string[]>;
   };
   const dismissedMap = storageData.dismissedSegments ?? {};
@@ -337,7 +344,7 @@ async function saveDismissedSegmentToStorage(segment: SponsorSegment): Promise<v
 
   if (!existingVideoDismissals.includes(segmentFingerprint)) {
     dismissedMap[activeVideoId] = [...existingVideoDismissals, segmentFingerprint];
-    await chrome.storage.local.set({ dismissedSegments: dismissedMap });
+    await storage.local.set({ dismissedSegments: dismissedMap });
   }
 }
 
@@ -511,6 +518,8 @@ function initializeKeyboardShortcuts(): void {
 }
 
 async function handleYouTubeNavigationEvent(): Promise<void> {
+  cleanPage();
+
   if (!isCurrentPageWatchPage()) {
     teardownThumbnailObserver();
     setupThumbnailObserver();
@@ -532,7 +541,7 @@ async function handleYouTubeNavigationEvent(): Promise<void> {
 
   injectExtensionStyles();
 
-  const userStorageData = (await chrome.storage.local.get([
+  const userStorageData = (await storage.local.get([
     'userPreferences',
     'showNotification',
     'noticeVisibilityMode',
@@ -571,30 +580,33 @@ async function handleYouTubeNavigationEvent(): Promise<void> {
     if (channelProfile) {
       activeUserPreferences = channelProfile.categoryPreferences;
       globalMinSegmentDuration = channelProfile.minSegmentDuration;
-      console.log(
-        LOG_PREFIX,
-        `Applied profile "${channelProfile.name}" for channel ${currentChannelId}`,
-      );
+      logDebug(`Applied profile "${channelProfile.name}" for channel ${currentChannelId}`);
     }
   }
 
-  const dismissedSegmentFingerprints = await fetchDismissedSegmentsFromStorage(extractedVideoId);
-  let fetchedSegments = await fetchVideoSegmentsFromServer(extractedVideoId);
+  const urlStartTime = getUrlStartTime();
 
+  const dismissedSegmentFingerprints = await fetchDismissedSegmentsFromStorage(extractedVideoId);
+  const fetchedSegments = await fetchVideoSegmentsFromServer(extractedVideoId);
+
+  const [dismissed, remaining] = partition(fetchedSegments, (s) =>
+    dismissedSegmentFingerprints.has(generateSegmentFingerprint(s)),
+  );
+  void dismissed;
+
+  let filtered = remaining;
   if (globalMinSegmentDuration > 0) {
-    fetchedSegments = fetchedSegments.filter(
-      (segment) => segment.endTime - segment.startTime >= globalMinSegmentDuration,
-    );
+    filtered = filtered.filter((s) => s.endTime - s.startTime >= globalMinSegmentDuration);
+  }
+  if (urlStartTime > 0) {
+    filtered = filtered.filter((s) => s.endTime > urlStartTime);
   }
 
-  fetchedSegments = fetchedSegments.filter(
-    (segment) => !dismissedSegmentFingerprints.has(generateSegmentFingerprint(segment)),
-  );
-  activeVideoSegments = fetchedSegments;
-  cacheSegmentsForVideo(extractedVideoId, fetchedSegments);
+  activeVideoSegments = filtered;
+  cacheSegmentsForVideo(extractedVideoId, filtered);
 
   if (activeVideoSegments.length > 0) {
-    console.log(LOG_PREFIX, `Found ${activeVideoSegments.length} segments.`);
+    logDebug(`Found ${activeVideoSegments.length} segments for ${extractedVideoId}.`);
     void injectTimelineBlocksIntoPlayer();
     initializeVideoPlaybackObserver();
     initializeKeyboardShortcuts();

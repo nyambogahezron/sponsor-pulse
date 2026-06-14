@@ -15,7 +15,6 @@ export interface TranscriptChunk {
   score: number;
 }
 
-/** The action to perform when a segment is encountered */
 export type SegmentActionType = 'skip' | 'mute';
 
 export interface SponsorSegment {
@@ -24,7 +23,6 @@ export interface SponsorSegment {
   confidence: number;
   category: SegmentCategory;
   source: 'ai-local' | 'crowdsourced' | 'ai-server';
-  /** How to handle this segment. 'skip' seeks past it; 'mute' silences audio only. */
   actionType?: SegmentActionType;
 }
 

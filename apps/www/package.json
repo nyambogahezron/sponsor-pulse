@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "preview": "vite preview",
-    "lint": "bunx biome check --fix .",
-    "format": "bunx biome format --write ."
+    "lint": "biome check .",
+    "lint:fix": "biome check --fix .",
+    "cleanup": "rm -rf dist* node_modules package-lock.json bun.lock *.tsbuildinfo .turbo",
+    "format": "biome check --write ."
   }
 }

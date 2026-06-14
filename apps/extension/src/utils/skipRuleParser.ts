@@ -1,5 +1,6 @@
 import type { SkipRule } from '../types/storage';
 import type { SponsorSegment } from '../types/types';
+import { storage } from '../utils/browserApi';
 
 type SegmentAttributeValue = string | number;
 type SegmentAction = SkipRule['action'] | null;
@@ -68,11 +69,11 @@ export function createRule(partial: Partial<Omit<SkipRule, 'id'>> = {}): SkipRul
 }
 
 export async function saveRules(rules: SkipRule[]): Promise<void> {
-  await chrome.storage.local.set({ skipRules: rules });
+  await storage.local.set({ skipRules: rules });
 }
 
 export async function loadRules(): Promise<SkipRule[]> {
-  const { skipRules = [] } = (await chrome.storage.local.get('skipRules')) as {
+  const { skipRules = [] } = (await storage.local.get('skipRules')) as {
     skipRules: SkipRule[];
   };
   return skipRules;

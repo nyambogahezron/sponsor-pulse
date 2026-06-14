@@ -1,5 +1,6 @@
 import type { LocalStorageSchema, SkipProfile, UserPreferences } from '../types/storage';
 import { DEFAULT_USER_PREFERENCES } from '../types/storage';
+import { storage } from '../utils/browserApi';
 
 type ProfileStorageSlice = Pick<LocalStorageSchema, 'skipProfiles' | 'channelProfileMap'>;
 
@@ -11,10 +12,7 @@ function generateProfileId(): string {
 }
 
 async function readProfileStorage(): Promise<ProfileStorageSlice> {
-  return chrome.storage.local.get([
-    'skipProfiles',
-    'channelProfileMap',
-  ]) as Promise<ProfileStorageSlice>;
+  return storage.local.get(['skipProfiles', 'channelProfileMap']) as Promise<ProfileStorageSlice>;
 }
 
 export async function getAllProfiles(): Promise<SkipProfile[]> {
@@ -41,7 +39,7 @@ export async function createProfile(
     categoryPreferences: preferences,
     minSegmentDuration,
   };
-  await chrome.storage.local.set({ skipProfiles: [...skipProfiles, newProfile] });
+  await storage.local.set({ skipProfiles: [...skipProfiles, newProfile] });
   return newProfile;
 }
 
@@ -53,7 +51,7 @@ export async function updateProfile(
   const updatedProfiles = skipProfiles.map((profile) =>
     profile.id === profileId ? { ...profile, ...patch } : profile,
   );
-  await chrome.storage.local.set({ skipProfiles: updatedProfiles });
+  await storage.local.set({ skipProfiles: updatedProfiles });
 }
 
 export async function deleteProfile(profileId: string): Promise<void> {
@@ -64,7 +62,7 @@ export async function deleteProfile(profileId: string): Promise<void> {
       ([, assignedProfileId]) => assignedProfileId !== profileId,
     ),
   );
-  await chrome.storage.local.set({
+  await storage.local.set({
     skipProfiles: remainingProfiles,
     channelProfileMap: updatedChannelMap,
   });
@@ -80,7 +78,7 @@ export async function assignProfileToChannel(
   } else {
     channelProfileMap[channelId] = profileId;
   }
-  await chrome.storage.local.set({ channelProfileMap });
+  await storage.local.set({ channelProfileMap });
 }
 
 export function detectChannelId(): string | null {

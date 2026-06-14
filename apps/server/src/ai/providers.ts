@@ -186,9 +186,7 @@ export const AIProviderFactory = {
 
     const newProvider = new LLMProvider(activeProviderKey);
     activeProviderInstances[activeProviderKey] = newProvider;
-    console.info(
-      `[AIProviderFactory] Initialized provider: ${newProvider.name}`,
-    );
+    console.info(`[AIProviderFactory] Initialized provider: ${newProvider.name}`);
 
     return newProvider;
   },

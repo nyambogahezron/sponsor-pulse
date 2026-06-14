@@ -1,11 +1,14 @@
 name: Continuous Integration
 
-# Trigger the workflow automatically on pushes to main and on any pull requests
 on:
   push:
     branches:
       - main
   pull_request:
+
+# Shared env for bun caching
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   lint-and-verify-build:
@@ -16,13 +19,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Set up the Bun runtime using the official setup action
       - name: Setup Bun Environment
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      # Cache Bun dependencies to speed up the workflow
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
@@ -31,18 +32,66 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      # Install all dependencies cleanly using the lockfile to ensure reproducible builds
       - name: Install Dependencies
         run: bun install --frozen-lockfile
 
-      # Run the Biome linter via the npm/bun script.
-      # If Biome detects formatting or linting errors, it will exit with a non-zero code
-      # and fail the pipeline immediately.
       - name: Static Analysis (Biome)
         run: bun run lint
 
-      # Build the Docker image to verify the container compiles without crashing.
-      # We target the Dockerfile located in the server app. This ensures that any infrastructure
-      # changes don't break the build layer. We don't push this to a registry yet.
       - name: Verify Docker Build
         run: docker build -t sponsor-pulse-server:ci-test -f apps/server/Dockerfile apps/server/
+
+  extension-build:
+    name: Extension Build (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox, edge]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun Environment
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb', '**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Extension (${{ matrix.browser }})
+        working-directory: apps/extension
+        run: bun run build:${{ matrix.browser }}
+
+      # Zip the dist folder so it's ready to load as a packed extension
+      - name: Zip dist-${{ matrix.browser }}
+        run: |
+          cd apps/extension/dist-${{ matrix.browser }}
+          zip -r ../../../SponsorPulse-${{ matrix.browser }}.zip .
+
+      # Upload the unzipped folder for easy inspection
+      - name: Upload dist-${{ matrix.browser }} (unpacked)
+        uses: actions/upload-artifact@v4
+        with:
+          name: SponsorPulse-${{ matrix.browser }}-${{ github.sha }}
+          path: apps/extension/dist-${{ matrix.browser }}/
+          retention-days: 14
+
+      # Upload the zip for direct installation / store submission
+      - name: Upload SponsorPulse-${{ matrix.browser }}.zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: SponsorPulse-${{ matrix.browser }}-zip-${{ github.sha }}
+          path: SponsorPulse-${{ matrix.browser }}.zip
+          retention-days: 14

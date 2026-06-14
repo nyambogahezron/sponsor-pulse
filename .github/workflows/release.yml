@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-and-upload:
+    name: Build & Upload Release Assets
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write   # needed to upload assets to the release
+
+    steps:
+      # Setup
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun Environment
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb', '**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Create builds directory
+        run: mkdir -p builds
+
+      # Chrome
+      - name: Build Chrome Extension
+        working-directory: apps/extension
+        run: bun run build:chrome
+
+      - name: Zip Chrome dist
+        run: |
+          cd apps/extension/dist-chrome
+          zip -r ../../../builds/SponsorPulse-chrome.zip .
+
+      - name: Upload Chrome Extension to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: builds/SponsorPulse-chrome.zip
+
+      # Firefox
+      - name: Build Firefox Extension
+        working-directory: apps/extension
+        run: bun run build:firefox
+
+      - name: Zip Firefox dist
+        run: |
+          cd apps/extension/dist-firefox
+          zip -r ../../../builds/SponsorPulse-firefox.zip .
+
+      - name: Upload Firefox Extension to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: builds/SponsorPulse-firefox.zip
+
+      # Upload unpacked Firefox dist as a CI artifact (useful for AMO review)
+      - name: Upload Firefox dist (unpacked)
+        uses: actions/upload-artifact@v4
+        with:
+          name: FirefoxExtension-unpacked
+          path: apps/extension/dist-firefox/
+
+      # Edge
+      - name: Build Edge Extension
+        working-directory: apps/extension
+        run: bun run build:edge
+
+      - name: Zip Edge dist
+        run: |
+          cd apps/extension/dist-edge
+          zip -r ../../../builds/SponsorPulse-edge.zip .
+
+      - name: Upload Edge Extension to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: builds/SponsorPulse-edge.zip
+
+      # Safari
+      - name: Build Safari Extension (source only)
+        working-directory: apps/extension
+        run: bun run build:safari
+
+      - name: Zip Safari dist (source)
+        run: |
+          cd apps/extension/dist-safari
+          zip -r ../../../builds/SponsorPulse-safari-source.zip .
+
+      - name: Upload Safari Source to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: builds/SponsorPulse-safari-source.zip

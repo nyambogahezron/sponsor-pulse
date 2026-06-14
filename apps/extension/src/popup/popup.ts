@@ -11,20 +11,18 @@ import type {
 } from '../types/storage';
 import { DEFAULT_GLOBAL_SETTINGS, DEFAULT_USER_PREFERENCES } from '../types/storage';
 import type { SegmentCategory } from '../types/types';
+import { runtime, storage } from '../utils/browserApi';
 import { DEFAULT_CATEGORY_COLORS } from '../utils/colorUtils';
+import { getLogs } from '../utils/logger';
 import { exportSegmentsToClipboard } from '../utils/segmentExporter';
 import { createProfile, deleteProfile, getAllProfiles } from '../utils/skipProfiles';
 import { createRule, getOperatorsForAttribute } from '../utils/skipRuleParser';
-
-// DOM helpers ──────────────────────────────────────────────────────────────
 
 function getEl<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
   if (!el) throw new Error(`[SponsorPulse] #${id} not found`);
   return el as T;
 }
-
-// Elements ─
 
 const enableToggle = getEl<HTMLInputElement>('enable-toggle');
 const statusBadge = getEl<HTMLSpanElement>('status-badge');
@@ -49,14 +47,10 @@ const exportSegmentsBtn = getEl<HTMLButtonElement>('export-segments-btn');
 const debugExportBtn = getEl<HTMLButtonElement>('debug-export-btn');
 const resetBtn = getEl<HTMLButtonElement>('reset-btn');
 
-// State ────
-
 let currentPreferences: UserPreferences = { ...DEFAULT_USER_PREFERENCES };
 let currentKeybinds: KeybindMap = { ...DEFAULT_KEYBINDS };
 let currentColors: CategoryColors = {};
 let currentRules: SkipRule[] = [];
-
-// Utilities
 
 function applyEnabled(enabled: boolean): void {
   enableToggle.checked = enabled;
@@ -66,7 +60,7 @@ function applyEnabled(enabled: boolean): void {
 }
 
 function save(patch: Partial<LocalStorageSchema>): void {
-  void chrome.storage.local.set(patch);
+  void storage.local.set(patch);
 }
 
 function showButtonFeedback(btn: HTMLButtonElement, msg: string): void {
@@ -78,8 +72,6 @@ function showButtonFeedback(btn: HTMLButtonElement, msg: string): void {
     btn.disabled = false;
   }, 1800);
 }
-
-// Category toggles ─────────────────────────────────────────────────────────
 
 function createCategoryToggle(category: SegmentCategory, autoSkip: boolean): HTMLElement {
   const row = document.createElement('div');
@@ -116,8 +108,6 @@ function renderCategoryToggles(): void {
   }
 }
 
-// Keybinds
-
 function renderKeybinds(): void {
   keybindRowsContainer.innerHTML = '';
   for (const [action, label] of Object.entries(KEYBIND_LABELS) as [KeybindAction, string][]) {
@@ -142,8 +132,6 @@ function renderKeybinds(): void {
     keybindRowsContainer.appendChild(row);
   }
 }
-
-// Skip Profiles ───────────────────────────────────────────────────────────
 
 async function renderProfiles(): Promise<void> {
   const profiles = await getAllProfiles();
@@ -183,8 +171,6 @@ createProfileBtn.addEventListener('click', async () => {
   showButtonFeedback(createProfileBtn, '✓ Created');
 });
 
-// Color pickers ───────────────────────────────────────────────────────────
-
 function renderColorPickers(): void {
   colorPickersContainer.innerHTML = '';
   for (const category of SEGMENT_CATEGORIES) {
@@ -208,8 +194,6 @@ function renderColorPickers(): void {
     colorPickersContainer.appendChild(row);
   }
 }
-
-// Skip Rules ──────────────────────────────────────────────────────────────
 
 function renderRules(): void {
   rulesContainer.innerHTML = '';
@@ -253,7 +237,6 @@ function renderRules(): void {
       <button class="sp-btn sp-btn--ghost" aria-label="Delete rule">✕</button>
     `;
 
-    // Wire changes
     const attrSel = row.querySelector('.sp-rule-attr') as HTMLSelectElement;
     const opSel = row.querySelector('.sp-rule-op') as HTMLSelectElement;
     const valInput = row.querySelector('.sp-rule-val') as HTMLInputElement;
@@ -272,7 +255,6 @@ function renderRules(): void {
     };
 
     attrSel.addEventListener('change', () => {
-      // Refresh operator options when attribute changes
       currentRules[i].attribute = attrSel.value as SkipRule['attribute'];
       renderRules();
       save({ skipRules: currentRules });
@@ -296,11 +278,8 @@ addRuleBtn.addEventListener('click', () => {
   renderRules();
 });
 
-// Data & Debug ─────────────────────────────────────────────────────────────
-
 exportSegmentsBtn.addEventListener('click', async () => {
-  // Get segments from the active tab's content script via storage
-  const { currentSegments = [] } = (await chrome.storage.local.get('currentSegments')) as {
+  const { currentSegments = [] } = (await storage.local.get('currentSegments')) as {
     currentSegments: import('../types/types').SponsorSegment[];
   };
   if (currentSegments.length === 0) {
@@ -312,9 +291,9 @@ exportSegmentsBtn.addEventListener('click', async () => {
 });
 
 debugExportBtn.addEventListener('click', async () => {
-  const all = (await chrome.storage.local.get(null)) as Partial<LocalStorageSchema>;
+  const all = (await storage.local.get(null)) as Partial<LocalStorageSchema>;
   const sanitised = {
-    extensionVersion: chrome.runtime.getManifest().version,
+    extensionVersion: runtime.getManifest().version,
     aiProvider: all.aiProvider,
     enabled: all.enabled,
     categoryPreferences: all.userPreferences,
@@ -323,6 +302,7 @@ debugExportBtn.addEventListener('click', async () => {
     dismissedVideoCount: Object.keys(all.dismissedSegments ?? {}).length,
     noticeVisibilityMode: all.noticeVisibilityMode,
     minSegmentDuration: all.minSegmentDuration,
+    logs: getLogs(),
   };
   await navigator.clipboard.writeText(JSON.stringify(sanitised, null, 2));
   showButtonFeedback(debugExportBtn, '✓ Copied!');
@@ -330,8 +310,8 @@ debugExportBtn.addEventListener('click', async () => {
 
 resetBtn.addEventListener('click', async () => {
   if (!confirm('Reset ALL SponsorPulse settings to defaults? This cannot be undone.')) return;
-  await chrome.storage.local.clear();
-  await chrome.storage.local.set({
+  await storage.local.clear();
+  await storage.local.set({
     userPreferences: DEFAULT_USER_PREFERENCES,
     creatorWhitelist: [],
     ...DEFAULT_GLOBAL_SETTINGS,
@@ -340,10 +320,8 @@ resetBtn.addEventListener('click', async () => {
   setTimeout(() => void init(), 500);
 });
 
-// Init ─────
-
 async function init(): Promise<void> {
-  const result = (await chrome.storage.local.get([
+  const result = (await storage.local.get([
     'enabled',
     'showNotification',
     'aiProvider',
@@ -386,8 +364,6 @@ async function init(): Promise<void> {
   renderRules();
   await renderProfiles();
 }
-
-// Event listeners ──────────────────────────────────────────────────────────
 
 enableToggle.addEventListener('change', () => {
   applyEnabled(enableToggle.checked);

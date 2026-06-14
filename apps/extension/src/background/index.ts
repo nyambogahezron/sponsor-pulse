@@ -1,3 +1,4 @@
+import type { Runtime } from 'webextension-polyfill';
 import {
   DEFAULT_GAMIFICATION_STATS,
   DEFAULT_GLOBAL_SETTINGS,
@@ -9,24 +10,24 @@ import type {
   ServerSponsorSegment,
   SponsorSegment,
 } from '../types/types';
+import { runtime, storage, tabs } from '../utils/browserApi';
 
 const LOG_PREFIX = '[SponsorPulse:BG]';
 const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1/analyze';
 
-chrome.runtime.onInstalled.addListener((details) => {
-  if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
-    chrome.storage.local.set(
-      {
+runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    void storage.local
+      .set({
         userPreferences: DEFAULT_USER_PREFERENCES,
         creatorWhitelist: [],
         gamificationStats: DEFAULT_GAMIFICATION_STATS,
         ...DEFAULT_GLOBAL_SETTINGS,
-      },
-      () => {
+      })
+      .then(() => {
         console.log(LOG_PREFIX, 'Default storage schema initialized.');
-        void chrome.tabs.create({ url: chrome.runtime.getURL('index.html') });
-      },
-    );
+        void tabs.create({ url: runtime.getURL('index.html') });
+      });
   }
 });
 
@@ -40,32 +41,30 @@ function mapServerSegment(seg: ServerSponsorSegment): SponsorSegment {
   };
 }
 
-chrome.runtime.onMessage.addListener(
-  (
-    message: FetchSponsorsMessage,
-    _sender: chrome.runtime.MessageSender,
-    sendResponse: (response: FetchSponsorsResponse) => void,
-  ): boolean => {
-    if (message.action !== 'FETCH_SPONSORS') return false;
+runtime.onMessage.addListener(
+  (message: unknown, _sender: Runtime.MessageSender): Promise<FetchSponsorsResponse> => {
+    const typedMessage = message as FetchSponsorsMessage;
+    if (typedMessage.action !== 'FETCH_SPONSORS') {
+      return Promise.resolve({ segments: [] });
+    }
 
-    void (async () => {
-      console.log(LOG_PREFIX, `Fetching sponsors for videoId: ${message.videoId}`);
+    return (async (): Promise<FetchSponsorsResponse> => {
+      console.log(LOG_PREFIX, `Fetching sponsors for videoId: ${typedMessage.videoId}`);
 
       try {
-        const result = await chrome.storage.local.get(['aiProvider']);
-        const provider = result.aiProvider || 'gemini';
+        const result = await storage.local.get(['aiProvider']);
+        const provider = (result.aiProvider as string) || 'gemini';
 
         const res = await fetch(SERVER_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId: message.videoId, provider }),
+          body: JSON.stringify({ videoId: typedMessage.videoId, provider }),
         });
 
         if (!res.ok) {
           const errBody = (await res.json()) as { error: string; code: string };
           console.warn(LOG_PREFIX, `Server error ${res.status}:`, errBody);
-          sendResponse({ error: errBody });
-          return;
+          return { error: errBody };
         }
 
         const data = (await res.json()) as {
@@ -80,20 +79,18 @@ chrome.runtime.onMessage.addListener(
           `Analysis complete — ${data.segments.length} segment(s) via ${data.provider}.`,
         );
 
-        sendResponse({ segments: data.segments });
+        return { segments: data.segments };
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error(LOG_PREFIX, 'Server unreachable:', message);
-        sendResponse({
+        const errMessage = err instanceof Error ? err.message : String(err);
+        console.error(LOG_PREFIX, 'Server unreachable:', errMessage);
+        return {
           error: {
             code: 'SERVER_OFFLINE',
-            error: `Could not connect to server: ${message}`,
+            error: `Could not connect to server: ${errMessage}`,
           },
-        });
+        };
       }
     })();
-
-    return true;
   },
 );
 

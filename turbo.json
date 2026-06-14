@@ -16,6 +16,9 @@
     "check": {
       "dependsOn": ["^check"]
     },
-    "lint": {}
+    "lint": {},
+    "cleanup": {
+      "cache": false
+    }
   }
 }

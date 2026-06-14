@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_DIR = join(__dirname, '..', 'public', 'icons');
-const SIZES = [16, 48, 128];
+const SIZES = [16, 32, 48, 64, 128, 256, 512];
 
 const BRAND = {
   bgStart: '#ff0000', 
