@@ -12,6 +12,6 @@
     "format": "biome check --write ."
   },
   "devDependencies": {
-    "vite": "^7.2.4"
+    "vite": "^8.0.12"
   }
 }

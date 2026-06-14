@@ -6,7 +6,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUTPUT_DIR = join(__dirname, '..', 'public', 'icons');
+const OUTPUT_DIR = join(__dirname, '..', 'apps', 'extension', 'public', 'icons');
 const SIZES = [16, 32, 48, 64, 128, 256, 512];
 
 const BRAND = {
