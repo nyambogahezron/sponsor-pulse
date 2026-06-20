@@ -1,16 +1,27 @@
-**/.dockerignore
-**/.env
-**/.turbo
-**/.git
-**/.gitignore
-**/.vs
-**/docker-compose*
-**/compose.y*ml
-**/Dockerfile*
-**/node_modules
-**/dist
-**/tests
-**/postman
-LICENSE
-README.md
+# Docker build artifacts
+node_modules
+dist
+
+# Environment files (inject via compose)
+.env
 .env.*
+!.env.example
+
+# Dev/CI tooling
+.turbo
+.git
+.gitignore
+.vscode
+.vs
+
+# Docker-specific files (not needed inside the image)
+.dockerignore
+Dockerfile*
+compose.y*ml
+docker-compose*
+
+# Test & docs (excluded from production image)
+tests
+postman
+README.md
+LICENSE
