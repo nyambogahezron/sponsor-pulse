@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
-import type { AnalyzeResponse, ErrorResponse } from '../src/types';
+import type { AnalyzeResponse, ErrorResponse } from '../src/routes/analyze';
 
 // Setup Mocks before importing the app
 const mockFetchTranscript = mock();

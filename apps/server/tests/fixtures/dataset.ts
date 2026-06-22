@@ -1,4 +1,4 @@
-import type { SponsorSegment } from '../../src/types';
+import type { SponsorSegment } from '../../src/ai/segments';
 
 export interface BenchmarkFixture {
   name: string;

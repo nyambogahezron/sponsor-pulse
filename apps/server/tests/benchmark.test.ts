@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { AIProviderFactory } from '../src/ai/providers';
-import type { SponsorSegment } from '../src/types';
+import type { SponsorSegment } from '../src/ai/segments';
 import { dataset } from './fixtures/dataset';
 
 const PROVIDERS = ['gemini', 'openai', 'claude', 'deepseek'] as const;

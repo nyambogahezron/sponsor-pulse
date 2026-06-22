@@ -1,5 +1,22 @@
-import { SEGMENT_CATEGORIES } from '../shared';
-import type { SegmentCategory, SponsorSegment } from '../types';
+export const SEGMENT_CATEGORIES = [
+  'sponsor',
+  'shoutout',
+  'course_promo',
+  'merch',
+  'product_sale',
+  'event_promo',
+  'intro_creator',
+  'intro_external',
+] as const;
+
+export type SegmentCategory = (typeof SEGMENT_CATEGORIES)[number];
+
+export interface SponsorSegment {
+  uuid: string;
+  start: number;
+  end: number;
+  category: SegmentCategory;
+}
 
 export function parseSegments(rawLlmResponse: string): Omit<SponsorSegment, 'uuid'>[] {
   const cleanedJsonString = rawLlmResponse

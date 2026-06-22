@@ -1,5 +1,5 @@
 import { AIProviderFactory } from '../src/ai/providers.ts';
-import { fetchTranscript } from '../src/lib/transcript.ts';
+import { fetchTranscript } from '../src/utils/transcript.ts';
 
 async function test() {
   const provider = AIProviderFactory.create();

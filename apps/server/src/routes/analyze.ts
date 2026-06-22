@@ -3,13 +3,25 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { AIProviderFactory } from '../ai/providers';
-import { fetchTranscript, TranscriptNotAvailableError } from '../lib/transcript';
-import { SEGMENT_CATEGORIES } from '../shared';
-import type {
-  AnalyzeResponse,
-  ErrorResponse,
-  SponsorSegment as ServerSponsorSegment,
-} from '../types';
+import { SEGMENT_CATEGORIES, type SponsorSegment as ServerSponsorSegment } from '../ai/segments';
+
+export interface AnalyzeRequest {
+  videoId: string;
+  transcript?: string;
+}
+
+export interface AnalyzeResponse {
+  videoId: string;
+  segments: ServerSponsorSegment[];
+  provider: string;
+  analyzedAt: number;
+}
+
+export interface ErrorResponse {
+  error: string;
+  code: string;
+}
+import { fetchTranscript, TranscriptNotAvailableError } from '../utils/transcript';
 import { incrementFailureCount, incrementSuccessCount } from './health';
 
 const segmentCache = new Map<string, AnalyzeResponse[]>();

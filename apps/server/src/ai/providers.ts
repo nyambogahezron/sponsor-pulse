@@ -1,9 +1,12 @@
-import type { SponsorSegment } from '../types';
-import type { IAIProvider } from './IAIProvider';
-import { parseSegments } from './parseSegments';
-import { SYSTEM_PROMPT } from './systemPrompt';
+import { parseSegments, type SponsorSegment } from './segments';
+import { SYSTEM_PROMPT } from './prompt';
 
 type ProviderKey = 'gemini' | 'openai' | 'claude' | 'deepseek';
+export interface IAIProvider {
+  readonly name: string;
+  analyzeTranscript(transcript: string): Promise<Omit<SponsorSegment, 'uuid'>[]>;
+}
+
 
 interface ProviderConfig {
   name: ProviderKey;
