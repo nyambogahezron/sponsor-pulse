@@ -14,11 +14,8 @@ RUN bun install --ignore-scripts
 COPY --from=pruner /app/out/full/ .
 
 FROM base AS release
-
-COPY --from=builder /app/apps/server/node_modules ./node_modules
-COPY --from=pruner /app/out/full/apps/server/src ./src
-COPY --from=pruner /app/out/full/apps/server/package.json ./package.json
-COPY --from=pruner /app/out/full/apps/server/tsconfig.json ./tsconfig.json
+COPY --from=builder /app /app
+WORKDIR /app/apps/server
 
 ENV NODE_ENV=production
 USER bun

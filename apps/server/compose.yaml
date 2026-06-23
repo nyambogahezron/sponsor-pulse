@@ -10,38 +10,5 @@ services:
         required: false
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-sponsor_pulse_user}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-sponsor_pulse_db}
     ports:
       - 3000:3000
-    depends_on:
-      db:
-        condition: service_healthy
-
-  db:
-    container_name: sponsor-pulse-db
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-sponsor_pulse_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ${POSTGRES_DB:-sponsor_pulse_db}
-    ports:
-      - "5432:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sponsor_pulse_user} -d ${POSTGRES_DB:-sponsor_pulse_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  adminer:
-    container_name: sponsor-pulse-adminer
-    image: adminer
-    restart: always
-    ports:
-      - 8080:8080
-    depends_on:
-      - db
-
-volumes:
-  db_data:

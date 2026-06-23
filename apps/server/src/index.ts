@@ -9,7 +9,9 @@ import { logger } from './utils/logger';
 
 const app = new Hono();
 
-app.use('*', secureHeaders());
+app.use('*', secureHeaders({
+  crossOriginResourcePolicy: false,
+}));
 app.use('*', timeout(30000));
 app.use(
   '*',
@@ -110,4 +112,4 @@ app.onError((error, context) => {
 const serverPort = Number(process.env.PORT ?? 3000);
 logger.info(`SponsorPulse server listening on http://localhost:${serverPort}`);
 
-export default { port: serverPort, fetch: app.fetch };
+export default { port: serverPort, hostname: '0.0.0.0', fetch: app.fetch };
