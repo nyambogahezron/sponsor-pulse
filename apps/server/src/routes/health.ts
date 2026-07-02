@@ -1,6 +1,5 @@
-import { Hono } from 'hono';
-
-const healthRoute = new Hono();
+import type { OpenAPIHono } from '@hono/zod-openapi';
+import { createRoute, z } from '@hono/zod-openapi';
 
 let analysisSuccessCount = 0;
 let analysisFailureCount = 0;
@@ -13,31 +12,66 @@ export const incrementFailureCount = (): void => {
   analysisFailureCount++;
 };
 
-healthRoute.get('/', (context) => {
-  const currentMemoryUsage = process.memoryUsage();
-
-  return context.json({
-    status: 'ok',
-    timestamp: Date.now(),
-    uptimeSeconds: process.uptime(),
-    memory: {
-      rss: currentMemoryUsage.rss,
-      heapTotal: currentMemoryUsage.heapTotal,
-      heapUsed: currentMemoryUsage.heapUsed,
-      external: currentMemoryUsage.external,
-    },
-    metrics: {
-      analysis: {
-        success: analysisSuccessCount,
-        failure: analysisFailureCount,
-        total: analysisSuccessCount + analysisFailureCount,
-      },
-    },
-    aiModelState: {
-      provider: process.env.ACTIVE_LLM ?? 'gemini',
-      status: 'ready',
-    },
-  });
+const HealthResponseSchema = z.object({
+  status: z.string().openapi({ example: 'ok' }),
+  timestamp: z.number().openapi({ example: 1719000000000 }),
+  uptimeSeconds: z.number().openapi({ example: 3600 }),
+  memory: z.object({
+    rss: z.number(),
+    heapTotal: z.number(),
+    heapUsed: z.number(),
+    external: z.number(),
+  }),
+  metrics: z.object({
+    analysis: z.object({
+      success: z.number().openapi({ example: 42 }),
+      failure: z.number().openapi({ example: 3 }),
+      total: z.number().openapi({ example: 45 }),
+    }),
+  }),
+  aiModelState: z.object({
+    provider: z.string().openapi({ example: 'gemini' }),
+    status: z.string().openapi({ example: 'ready' }),
+  }),
 });
 
-export default healthRoute;
+const healthRoute = createRoute({
+  method: 'get',
+  path: '/health',
+  responses: {
+    200: {
+      content: { 'application/json': { schema: HealthResponseSchema } },
+      description: 'Health check response with server metrics and memory usage',
+    },
+  },
+  tags: ['health'],
+});
+
+export function registerHealthRoutes(app: OpenAPIHono): void {
+  app.openapi(healthRoute, (context) => {
+    const currentMemoryUsage = process.memoryUsage();
+
+    return context.json({
+      status: 'ok',
+      timestamp: Date.now(),
+      uptimeSeconds: process.uptime(),
+      memory: {
+        rss: currentMemoryUsage.rss,
+        heapTotal: currentMemoryUsage.heapTotal,
+        heapUsed: currentMemoryUsage.heapUsed,
+        external: currentMemoryUsage.external,
+      },
+      metrics: {
+        analysis: {
+          success: analysisSuccessCount,
+          failure: analysisFailureCount,
+          total: analysisSuccessCount + analysisFailureCount,
+        },
+      },
+      aiModelState: {
+        provider: process.env.ACTIVE_LLM ?? 'gemini',
+        status: 'ready',
+      },
+    });
+  });
+}

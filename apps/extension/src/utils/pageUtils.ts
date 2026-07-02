@@ -7,9 +7,9 @@ export function getUrlStartTime(): number {
 
 export function urlTimeToSeconds(time: string): number {
   if (!time) return 0;
-  const match = /(?:(\d{1,3})h)?(?:(\d{1,2})m)?(\d+)s?/.exec(time);
+  const match = /(?:(\d{1,3})h)?(?:(\d{1,2})m)?(\d+)?s?/.exec(time);
   if (match) {
-    return +(match[1] ?? 0) * 3600 + +(match[2] ?? 0) * 60 + +match[3];
+    return +(match[1] ?? 0) * 3600 + +(match[2] ?? 0) * 60 + +(match[3] ?? 0);
   }
   return /^\d+$/.test(time) ? parseInt(time, 10) : 0;
 }

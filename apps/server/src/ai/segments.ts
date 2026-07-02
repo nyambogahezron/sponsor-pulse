@@ -1,22 +1,11 @@
-export const SEGMENT_CATEGORIES = [
-  'sponsor',
-  'shoutout',
-  'course_promo',
-  'merch',
-  'product_sale',
-  'event_promo',
-  'intro_creator',
-  'intro_external',
-] as const;
+import {
+  SEGMENT_CATEGORIES,
+  type SegmentCategory,
+  type ServerSponsorSegment,
+} from '@sponsor-pulse/shared';
 
-export type SegmentCategory = (typeof SEGMENT_CATEGORIES)[number];
-
-export interface SponsorSegment {
-  uuid: string;
-  start: number;
-  end: number;
-  category: SegmentCategory;
-}
+export { SEGMENT_CATEGORIES, type SegmentCategory };
+export type SponsorSegment = ServerSponsorSegment;
 
 export function parseSegments(rawLlmResponse: string): Omit<SponsorSegment, 'uuid'>[] {
   const cleanedJsonString = rawLlmResponse

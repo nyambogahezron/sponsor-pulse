@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
-import type { AnalyzeResponse, ErrorResponse } from '../src/routes/analyze';
+
+import type { AnalyzeResponse } from '@sponsor-pulse/shared';
+
+interface ErrorResponse {
+  error: string;
+  code: string;
+}
 
 // Setup Mocks before importing the app
 const mockFetchTranscript = mock();
-mock.module('../src/lib/transcript', () => ({
+mock.module('../src/utils/transcript', () => ({
   fetchTranscript: mockFetchTranscript,
   TranscriptNotAvailableError: class TranscriptNotAvailableError extends Error {
     constructor(videoId: string) {
@@ -26,7 +32,7 @@ mock.module('../src/ai/providers', () => ({
 
 import app from '../src/index';
 
-const validVideoId = 'a'.repeat(64); // 64-character hex string
+const validVideoId = 'dQw4w9WgXcQ'; // 11-character YouTube video ID
 
 describe('Validation & Edge Case Tests', () => {
   beforeEach(() => {

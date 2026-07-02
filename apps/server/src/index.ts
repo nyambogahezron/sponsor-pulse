@@ -1,17 +1,33 @@
-import { Hono } from 'hono';
+import { swaggerUI } from '@hono/swagger-ui';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { timeout } from 'hono/timeout';
 import { rateLimiter } from 'hono-rate-limiter';
-import analyzeRoute from './routes/analyze';
-import healthRoute from './routes/health';
+import { registerAnalyzeRoutes } from './routes/analyze';
+import { registerHealthRoutes } from './routes/health';
 import { logger } from './utils/logger';
 
-const app = new Hono();
+const app = new OpenAPIHono({
+  defaultHook: (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          error: 'Invalid or missing videoId. Expected standard YouTube video ID.',
+          code: 'INVALID_VIDEO_ID',
+        },
+        400 as const,
+      );
+    }
+  },
+});
 
-app.use('*', secureHeaders({
-  crossOriginResourcePolicy: false,
-}));
+app.use(
+  '*',
+  secureHeaders({
+    crossOriginResourcePolicy: false,
+  }),
+);
 app.use('*', timeout(30000));
 app.use(
   '*',
@@ -95,12 +111,25 @@ app.use('*', async (context, nextHandler) => {
   );
 });
 
+app.doc('/doc', {
+  openapi: '3.1.0',
+  info: {
+    title: 'SponsorPulse API',
+    version: '0.1.0-beta',
+    description:
+      'Backend API for SponsorPulse — analyzes YouTube transcripts via AI to detect sponsor segments.',
+  },
+  servers: [{ url: 'http://localhost:3000', description: 'Development' }],
+});
+
+app.get('/docs', swaggerUI({ url: '/doc' }));
+
 app.get('/', (context) =>
   context.json({ msg: 'SponsorPulse server is running.', timestamp: Date.now() }),
 );
 
-app.route('/health', healthRoute);
-app.route('/api/v1/analyze', analyzeRoute);
+registerHealthRoutes(app);
+registerAnalyzeRoutes(app);
 
 app.notFound((context) => context.json({ error: 'Not found.', code: 'NOT_FOUND' }, 404));
 

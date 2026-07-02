@@ -21,7 +21,13 @@ The highly scalable backend built with [Hono](https://hono.dev/) and deployed on
 The marketing and landing page for SponsorPulse, optimized for speed and SEO.
 
 ### `packages/shared`
-A shared TypeScript library containing the core schema definitions (like `SegmentCategory` and API request/response types). This ensures that the frontend and backend are always in perfect sync.
+A shared TypeScript library containing the core schema definitions (`SEGMENT_CATEGORIES`, `SegmentCategory`, `ServerSponsorSegment`, `AnalyzeRequest`, `AnalyzeResponse`). This ensures the frontend and backend are always in perfect sync — both `apps/extension` and `apps/server` import from `@sponsor-pulse/shared`.
+
+```
+packages/shared/src/index.ts  ← single source of truth for shared types
+apps/extension/src/types/shared.ts  ← re-exports from @sponsor-pulse/shared
+apps/server/src/ai/segments.ts  ← re-exports from @sponsor-pulse/shared
+```
 
 ## Data Flow
 
