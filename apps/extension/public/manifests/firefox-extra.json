@@ -2,7 +2,9 @@
   "manifest_version": 2,
 
   "permissions": [
-    "*://*.youtube.com/*"
+    "*://*.youtube.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
 
   "optional_permissions": [

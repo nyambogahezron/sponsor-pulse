@@ -3,7 +3,9 @@
   "manifest_version": 3,
 
   "host_permissions": [
-    "*://*.youtube.com/*"
+    "*://*.youtube.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
 
   "web_accessible_resources": [{

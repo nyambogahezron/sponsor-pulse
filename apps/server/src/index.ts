@@ -53,13 +53,20 @@ app.use(
     origin: (originUrl) => {
       if (!originUrl) return 'http://localhost:3000';
 
-      const allowedExtensionOrigin = process.env.EXTENSION_ID
-        ? `chrome-extension://${process.env.EXTENSION_ID}`
-        : null;
+      const extensionIds = process.env.EXTENSION_ID
+        ? process.env.EXTENSION_ID.split(',').map((id) => id.trim())
+        : [];
 
-      if (allowedExtensionOrigin && originUrl === allowedExtensionOrigin) return originUrl;
+      const allowedExtensionOrigins = extensionIds.map(
+        (id) => `chrome-extension://${id}`,
+      );
 
-      if (!allowedExtensionOrigin && originUrl.startsWith('chrome-extension://')) {
+      if (allowedExtensionOrigins.length > 0 && originUrl.startsWith('chrome-extension://')) {
+        if (allowedExtensionOrigins.includes(originUrl)) return originUrl;
+        return null;
+      }
+
+      if (extensionIds.length === 0 && originUrl.startsWith('chrome-extension://')) {
         return originUrl;
       }
 
@@ -79,6 +86,8 @@ app.use('*', async (context, nextHandler) => {
   const requestStartTime = Date.now();
   const requestMethod = context.req.method;
   const requestPath = context.req.path;
+  const origin = context.req.header('origin') || 'unknown';
+  const userAgent = context.req.header('user-agent') || 'unknown';
 
   let requestPayload: unknown | undefined;
   if (requestMethod !== 'GET' && requestMethod !== 'HEAD') {
@@ -92,9 +101,18 @@ app.use('*', async (context, nextHandler) => {
     }
   }
 
+  const isExtension = origin.startsWith('chrome-extension://');
+
   logger.info(
-    { method: requestMethod, path: requestPath, payload: requestPayload },
-    'Incoming request',
+    { 
+      method: requestMethod, 
+      path: requestPath, 
+      payload: requestPayload,
+      origin,
+      userAgent,
+      isExtension
+    },
+    isExtension ? 'Incoming request from extension' : 'Incoming request',
   );
 
   await nextHandler();
@@ -106,8 +124,9 @@ app.use('*', async (context, nextHandler) => {
       path: requestPath,
       status: context.res.status,
       latencyMs: requestLatencyMs,
+      isExtension
     },
-    'Request completed',
+    isExtension ? 'Extension request completed' : 'Request completed',
   );
 });
 
