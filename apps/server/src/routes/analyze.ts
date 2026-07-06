@@ -4,8 +4,13 @@ import { createRoute, z } from '@hono/zod-openapi';
 import type { AnalyzeRequest, AnalyzeResponse } from '@sponsor-pulse/shared';
 import { AIProviderFactory } from '../ai/providers';
 import { SEGMENT_CATEGORIES, type SponsorSegment as ServerSponsorSegment } from '../ai/segments';
+import {
+  analysisTotal,
+  cacheOperationsTotal,
+  transcriptFetchTotal,
+} from '../middleware/metrics';
 import { fetchTranscript, TranscriptNotAvailableError } from '../utils/transcript';
-import { incrementFailureCount, incrementSuccessCount } from './health';
+import { logger } from '../utils/logger';
 
 export type { AnalyzeRequest, AnalyzeResponse };
 
@@ -130,9 +135,11 @@ export function registerAnalyzeRoutes(app: OpenAPIHono): void {
 
     const cachedResults = segmentCache.get(hashPrefix) || [];
     if (cachedResults.length === 0) {
+      cacheOperationsTotal.inc({ operation: 'miss' });
       return context.json({ error: 'No data for this prefix.', code: 'NOT_FOUND' }, 404 as const);
     }
 
+    cacheOperationsTotal.inc({ operation: 'hit' });
     return context.json(cachedResults, 200 as const);
   });
 
@@ -154,15 +161,18 @@ export function registerAnalyzeRoutes(app: OpenAPIHono): void {
     let videoTranscript: string;
     try {
       videoTranscript = await fetchTranscript(videoId);
+      transcriptFetchTotal.inc({ status: 'success' });
     } catch (transcriptError) {
       if (transcriptError instanceof TranscriptNotAvailableError) {
-        console.warn('[/analyze] No transcript for video:', videoId);
+        transcriptFetchTotal.inc({ status: 'not_available' });
+        logger.warn({ videoId }, 'No transcript available for video');
         return context.json(
           { error: 'This video has no transcript or captions available.', code: 'NO_TRANSCRIPT' },
           404 as const,
         );
       }
-      console.error('[/analyze] Transcript fetch failed:', transcriptError);
+      transcriptFetchTotal.inc({ status: 'failed' });
+      logger.error({ err: transcriptError, videoId }, 'Transcript fetch failed');
       return context.json(
         { error: 'Failed to fetch transcript.', code: 'TRANSCRIPT_FETCH_FAILED' },
         502 as const,
@@ -185,7 +195,7 @@ export function registerAnalyzeRoutes(app: OpenAPIHono): void {
     try {
       aiProviderInstance = AIProviderFactory.create(requestedAiProvider);
     } catch (providerInitError) {
-      console.error('[/analyze] Provider init failed:', providerInitError);
+      logger.error({ err: providerInitError, requestedProvider: requestedAiProvider }, 'AI provider init failed');
       return context.json(
         { error: 'AI provider configuration error.', code: 'PROVIDER_INIT_FAILED' },
         500 as const,
@@ -200,7 +210,7 @@ export function registerAnalyzeRoutes(app: OpenAPIHono): void {
         .filter((segmentCandidate) => {
           const parsedValidation = ServerSponsorSegmentSchema.safeParse(segmentCandidate);
           if (!parsedValidation.success) {
-            console.warn('[/analyze] Stripped hallucinatory/invalid segment:', segmentCandidate);
+            logger.warn({ segment: segmentCandidate }, 'Stripped invalid/hallucinatory AI segment');
             return false;
           }
           return true;
@@ -214,12 +224,12 @@ export function registerAnalyzeRoutes(app: OpenAPIHono): void {
           }),
         );
     } catch (analysisError) {
-      incrementFailureCount();
-      console.error('[/analyze] AI analysis failed:', analysisError);
+      analysisTotal.inc({ provider: aiProviderInstance.name, status: 'failure' });
+      logger.error({ err: analysisError, videoId, provider: aiProviderInstance.name }, 'AI analysis failed');
       return context.json({ error: 'AI analysis failed.', code: 'ANALYSIS_FAILED' }, 502 as const);
     }
 
-    incrementSuccessCount();
+    analysisTotal.inc({ provider: aiProviderInstance.name, status: 'success' });
 
     const responsePayload = {
       videoId,
@@ -234,6 +244,7 @@ export function registerAnalyzeRoutes(app: OpenAPIHono): void {
     const filteredGroup = existingGroup.filter((r) => r.videoId !== videoId);
     filteredGroup.push(responsePayload);
     segmentCache.set(prefix, filteredGroup);
+    cacheOperationsTotal.inc({ operation: 'write' });
 
     return context.json(responsePayload, 200 as const);
   });

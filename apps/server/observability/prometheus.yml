@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: 'local'
+
+scrape_configs:
+  - job_name: 'sponsor-pulse'
+    static_configs:
+      - targets: ['server:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s

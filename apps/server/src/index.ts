@@ -4,8 +4,10 @@ import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { timeout } from 'hono/timeout';
 import { rateLimiter } from 'hono-rate-limiter';
+import { requestMetricsMiddleware } from './middleware/metrics';
 import { registerAnalyzeRoutes } from './routes/analyze';
 import { registerHealthRoutes } from './routes/health';
+import { registerMetricsRoute } from './routes/metrics';
 import { logger } from './utils/logger';
 
 const app = new OpenAPIHono({
@@ -29,6 +31,7 @@ app.use(
   }),
 );
 app.use('*', timeout(30000));
+app.use('*', requestMetricsMiddleware);
 app.use(
   '*',
   rateLimiter({
@@ -149,6 +152,7 @@ app.get('/', (context) =>
 
 registerHealthRoutes(app);
 registerAnalyzeRoutes(app);
+registerMetricsRoute(app);
 
 app.notFound((context) => context.json({ error: 'Not found.', code: 'NOT_FOUND' }, 404));
 

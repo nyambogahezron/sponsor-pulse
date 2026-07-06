@@ -103,3 +103,66 @@ You can also run typechecks using:
 \`\`\`bash
 bun run typecheck
 \`\`\`
+
+---
+
+## 📊 Observability
+
+The server ships with a full observability stack: **Prometheus** for metrics, **Grafana** for dashboards, and **Loki + Promtail** for log aggregation. Everything is wired via Docker Compose.
+
+### Starting the stack
+
+\`\`\`bash
+# From apps/server/
+docker compose up --build
+\`\`\`
+
+| Service    | URL                          | Purpose                        |
+|------------|------------------------------|--------------------------------|
+| Server     | http://localhost:3000        | API + `/metrics` scrape target |
+| Prometheus | http://localhost:9090        | Metrics storage & query UI     |
+| Grafana    | http://localhost:3001        | Dashboards (admin / admin)     |
+| Loki       | internal (`:3100`)           | Log aggregation                |
+
+### Metrics endpoint
+
+\`\`\`
+GET /metrics
+\`\`\`
+
+Returns Prometheus exposition-format text. Optionally protected with a Bearer token via the `METRICS_TOKEN` env var.
+
+### Key metrics
+
+| Metric | Type | Labels |
+|---|---|---|
+| `http_requests_total` | Counter | `method`, `path`, `status` |
+| `http_request_duration_ms` | Histogram | `method`, `path`, `status` |
+| `http_active_requests` | Gauge | `method` |
+| `analysis_total` | Counter | `provider`, `status` |
+| `cache_operations_total` | Counter | `operation` (hit/miss/write) |
+| `transcript_fetch_total` | Counter | `status` |
+
+### Grafana dashboard
+
+The **SponsorPulse — API Observability** dashboard is auto-provisioned on startup. It includes:
+
+- Request rate & latency percentiles (p50 / p95 / p99)
+- Error rate by HTTP status code
+- Active request gauge
+- Analysis rate by provider and outcome
+- Cache hit / miss / write rate + hit-ratio gauge
+- Live server log stream (all levels + errors/warnings panel)
+
+### Grafana credentials
+
+Default: `admin` / `admin`. Override via env vars in `.env`:
+
+\`\`\`
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=your_secure_password
+\`\`\`
+
+### Log levels
+
+Control verbosity with `LOG_LEVEL` in `.env` (`trace` | `debug` | `info` | `warn` | `error`). Default: `info`.

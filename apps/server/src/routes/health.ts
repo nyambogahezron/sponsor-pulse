@@ -1,16 +1,6 @@
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { createRoute, z } from '@hono/zod-openapi';
-
-let analysisSuccessCount = 0;
-let analysisFailureCount = 0;
-
-export const incrementSuccessCount = (): void => {
-  analysisSuccessCount++;
-};
-
-export const incrementFailureCount = (): void => {
-  analysisFailureCount++;
-};
+import { analysisTotal } from '../middleware/metrics';
 
 const HealthResponseSchema = z.object({
   status: z.string().openapi({ example: 'ok' }),
@@ -48,8 +38,18 @@ const healthRoute = createRoute({
 });
 
 export function registerHealthRoutes(app: OpenAPIHono): void {
-  app.openapi(healthRoute, (context) => {
+  app.openapi(healthRoute, async (context) => {
     const currentMemoryUsage = process.memoryUsage();
+
+    // Read counters directly from the prom-client metric values
+    const analysisValues = await analysisTotal.get();
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (const { labels, value } of analysisValues.values) {
+      if (labels.status === 'success') successCount += value;
+      if (labels.status === 'failure') failureCount += value;
+    }
 
     return context.json({
       status: 'ok',
@@ -63,9 +63,9 @@ export function registerHealthRoutes(app: OpenAPIHono): void {
       },
       metrics: {
         analysis: {
-          success: analysisSuccessCount,
-          failure: analysisFailureCount,
-          total: analysisSuccessCount + analysisFailureCount,
+          success: successCount,
+          failure: failureCount,
+          total: successCount + failureCount,
         },
       },
       aiModelState: {
